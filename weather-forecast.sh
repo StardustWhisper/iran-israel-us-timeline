@@ -20,6 +20,10 @@ FX_JSON="$TMP_DIR/fx.json"
 NEWS_XML="$TMP_DIR/news.xml"
 SGE_LIST_HTML="$TMP_DIR/sge_list.html"
 SGE_DETAIL_HTML="$TMP_DIR/sge_detail.html"
+XAU_JSON="$TMP_DIR/xau.json"
+XAG_JSON="$TMP_DIR/xag.json"
+XAU_CSV="$TMP_DIR/xauusd.csv"
+XAG_CSV="$TMP_DIR/xagusd.csv"
 
 # 1) 天气
 curl -fsSL "https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=${TZ}&forecast_days=2" -o "$WEATHER_JSON"
@@ -31,19 +35,27 @@ if [[ -n "$SGE_PATH" ]]; then
   curl -fsSL "https://www.sge.com.cn${SGE_PATH}" -o "$SGE_DETAIL_HTML" || true
 fi
 
-# 3) 美元/人民币（轻量无 key）
+# 3) 国际金银（美元/盎司，主来源）
+curl -fsSL "https://api.gold-api.com/price/XAU" -o "$XAU_JSON" || true
+curl -fsSL "https://api.gold-api.com/price/XAG" -o "$XAG_JSON" || true
+
+# 3b) 备用来源（CSV）
+curl -fsSL "https://stooq.com/q/l/?s=xauusd&i=d" -o "$XAU_CSV" || true
+curl -fsSL "https://stooq.com/q/l/?s=xagusd&i=d" -o "$XAG_CSV" || true
+
+# 4) 美元/人民币（轻量无 key）
 curl -fsSL "https://open.er-api.com/v6/latest/USD" -o "$FX_JSON" || true
 
-# 4) 国际要闻
+# 5) 国际要闻
 curl -fsSL "https://news.google.com/rss/search?q=%E5%9B%BD%E9%99%85+when%3A1d&hl=zh-CN&gl=CN&ceid=CN%3Azh-Hans" -o "$NEWS_XML" || true
 
-python3 - "$CITY" "$now" "$WEATHER_JSON" "$FX_JSON" "$NEWS_XML" "$SGE_DETAIL_HTML" <<'PY'
+python3 - "$CITY" "$now" "$WEATHER_JSON" "$FX_JSON" "$NEWS_XML" "$SGE_DETAIL_HTML" "$XAU_JSON" "$XAG_JSON" "$XAU_CSV" "$XAG_CSV" <<'PY'
 import json
 import re
 import sys
 from xml.etree import ElementTree as ET
 
-city, now, weather_path, fx_path, news_path, sge_detail_path = sys.argv[1:]
+city, now, weather_path, fx_path, news_path, sge_detail_path, xau_json_path, xag_json_path, xau_csv_path, xag_csv_path = sys.argv[1:]
 
 code_map = {
     0: "晴", 1: "晴间多云", 2: "多云", 3: "阴", 45: "雾", 48: "冻雾",
@@ -100,11 +112,46 @@ def day_line(i):
 today_date, today_temp, today_desc, today_rain = day_line(0)
 tmr_date, tmr_temp, tmr_desc, _ = day_line(1)
 
-# ----- finance from SGE -----
-sge_gold = None          # Au99.99 收盘，元/克
-sge_silver = None        # Ag99.99 或 Ag(T+D) 收盘（通常元/千克）
-sge_silver_name = None
+# ----- finance -----
+# 主来源：gold-api（国际现货，USD/oz）
+# 次来源：Stooq
+# 兜底：SGE + USD/CNY 换算
 
+def parse_gold_api_price(path):
+    try:
+        data = json.load(open(path, 'r', encoding='utf-8'))
+        return parse_num(str(data.get('price')))
+    except Exception:
+        return None
+
+def parse_stooq_close(path):
+    try:
+        raw = open(path, 'r', encoding='utf-8', errors='ignore').read().strip()
+        # 形如：XAUUSD,20260302,030820,5312.56,5393.715,5304.065,5322.045,,
+        line = raw.splitlines()[0]
+        parts = [p.strip() for p in line.split(',')]
+        if len(parts) >= 7:
+            return parse_num(parts[6])
+    except Exception:
+        pass
+    return None
+
+gold_usd_oz = parse_gold_api_price(xau_json_path)
+silver_usd_oz = parse_gold_api_price(xag_json_path)
+price_source = "gold-api"
+
+if not isinstance(gold_usd_oz, (int, float)):
+    gold_usd_oz = parse_stooq_close(xau_csv_path)
+    if isinstance(gold_usd_oz, (int, float)):
+        price_source = "stooq"
+if not isinstance(silver_usd_oz, (int, float)):
+    silver_usd_oz = parse_stooq_close(xag_csv_path)
+    if isinstance(silver_usd_oz, (int, float)) and price_source == "gold-api":
+        price_source = "mixed"
+
+# 兜底所需：SGE（元）与 USD/CNY
+sge_gold = None
+sge_silver = None
 try:
     html = open(sge_detail_path, 'r', encoding='utf-8', errors='ignore').read()
     rows = re.findall(r'<tr[^>]*>(.*?)</tr>', html, flags=re.S | re.I)
@@ -120,23 +167,17 @@ try:
         if len(tds) < 5:
             continue
         vals = [clean(x) for x in tds]
-        name = vals[0]
-        row_map[name] = vals
+        row_map[vals[0]] = vals
 
-    # 收盘价列：第5列（索引4）
     if 'Au99.99' in row_map:
         sge_gold = parse_num(row_map['Au99.99'][4])
-
     if 'Ag99.99' in row_map:
-        sge_silver_name = 'Ag99.99'
         sge_silver = parse_num(row_map['Ag99.99'][4])
     elif 'Ag(T+D)' in row_map:
-        sge_silver_name = 'Ag(T+D)'
         sge_silver = parse_num(row_map['Ag(T+D)'][4])
 except Exception:
     pass
 
-# USD/CNY
 usdcny = None
 try:
     with open(fx_path, 'r', encoding='utf-8') as f:
@@ -145,20 +186,16 @@ try:
 except Exception:
     pass
 
-# 单位换算：元/克 -> 美元/盎司（1 金衡盎司 = 31.1034768 克）
-OZ_PER_G = 31.1034768
-silver_per_g_cny = None
-if isinstance(sge_silver, (int, float)):
-    silver_per_g_cny = sge_silver / 1000.0 if sge_silver > 100 else sge_silver
+if (not isinstance(gold_usd_oz, (int, float)) or not isinstance(silver_usd_oz, (int, float))) and isinstance(usdcny, (int, float)) and usdcny:
+    OZ_PER_G = 31.1034768
+    if not isinstance(gold_usd_oz, (int, float)) and isinstance(sge_gold, (int, float)):
+        gold_usd_oz = sge_gold * OZ_PER_G / usdcny
+        price_source = "sge-fallback"
+    if not isinstance(silver_usd_oz, (int, float)) and isinstance(sge_silver, (int, float)):
+        silver_per_g_cny = sge_silver / 1000.0 if sge_silver > 100 else sge_silver
+        silver_usd_oz = silver_per_g_cny * OZ_PER_G / usdcny
+        price_source = "sge-fallback"
 
-gold_usd_oz = None
-silver_usd_oz = None
-if isinstance(sge_gold, (int, float)) and isinstance(usdcny, (int, float)) and usdcny:
-    gold_usd_oz = sge_gold * OZ_PER_G / usdcny
-if isinstance(silver_per_g_cny, (int, float)) and isinstance(usdcny, (int, float)) and usdcny:
-    silver_usd_oz = silver_per_g_cny * OZ_PER_G / usdcny
-
-# 金银比（国际口径，美元/盎司）
 ratio = None
 if isinstance(gold_usd_oz, (int, float)) and isinstance(silver_usd_oz, (int, float)) and silver_usd_oz:
     ratio = gold_usd_oz / silver_usd_oz
@@ -203,6 +240,14 @@ print(f"🏆 国际黄金: {fmt2(gold_usd_oz)} USD/盎司")
 print(f"🥈 国际白银: {fmt2(silver_usd_oz)} USD/盎司")
 print(f"⚖️ 金银比: {fmt2(ratio)}")
 print(f"💵 美元/人民币: {fmt2(usdcny)}")
+if price_source == "sge-fallback":
+    print("ℹ️ 金银价格来源: SGE 换算（国际源不可用）")
+elif price_source == "gold-api":
+    print("ℹ️ 金银价格来源: gold-api")
+elif price_source == "stooq":
+    print("ℹ️ 金银价格来源: stooq")
+elif price_source == "mixed":
+    print("ℹ️ 金银价格来源: mixed(gold-api/stooq)")
 print()
 
 print("🌍 国际要闻 (24小时)")
