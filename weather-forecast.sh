@@ -136,13 +136,6 @@ try:
 except Exception:
     pass
 
-# 金银比（把白银按元/千克换算为元/克后再比）
-ratio = None
-if isinstance(sge_gold, (int, float)) and isinstance(sge_silver, (int, float)) and sge_silver:
-    silver_per_g = sge_silver / 1000.0 if sge_silver > 100 else sge_silver
-    if silver_per_g:
-        ratio = sge_gold / silver_per_g
-
 # USD/CNY
 usdcny = None
 try:
@@ -151,6 +144,24 @@ try:
     usdcny = fx.get('rates', {}).get('CNY')
 except Exception:
     pass
+
+# 单位换算：元/克 -> 美元/盎司（1 金衡盎司 = 31.1034768 克）
+OZ_PER_G = 31.1034768
+silver_per_g_cny = None
+if isinstance(sge_silver, (int, float)):
+    silver_per_g_cny = sge_silver / 1000.0 if sge_silver > 100 else sge_silver
+
+gold_usd_oz = None
+silver_usd_oz = None
+if isinstance(sge_gold, (int, float)) and isinstance(usdcny, (int, float)) and usdcny:
+    gold_usd_oz = sge_gold * OZ_PER_G / usdcny
+if isinstance(silver_per_g_cny, (int, float)) and isinstance(usdcny, (int, float)) and usdcny:
+    silver_usd_oz = silver_per_g_cny * OZ_PER_G / usdcny
+
+# 金银比（国际口径，美元/盎司）
+ratio = None
+if isinstance(gold_usd_oz, (int, float)) and isinstance(silver_usd_oz, (int, float)) and silver_usd_oz:
+    ratio = gold_usd_oz / silver_usd_oz
 
 # ----- news -----
 news = []
@@ -188,11 +199,8 @@ print(today_rain)
 print()
 
 print("💰 财经信息")
-print(f"🏆 上海金交所 Au99.99: {fmt2(sge_gold)} 元/克")
-if sge_silver_name:
-    print(f"🥈 上海金交所 {sge_silver_name}: {fmt2(sge_silver)} 元/千克")
-else:
-    print(f"🥈 上海金交所白银: --")
+print(f"🏆 国际黄金: {fmt2(gold_usd_oz)} USD/盎司")
+print(f"🥈 国际白银: {fmt2(silver_usd_oz)} USD/盎司")
 print(f"⚖️ 金银比: {fmt2(ratio)}")
 print(f"💵 美元/人民币: {fmt2(usdcny)}")
 print()
