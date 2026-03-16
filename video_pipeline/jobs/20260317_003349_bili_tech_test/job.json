@@ -1,0 +1,80 @@
+{
+  "job_id": "20260317_003349_bili_tech_test",
+  "title": "bili_tech_test",
+  "platform": "bilibili",
+  "style": "realistic_tech",
+  "total_seconds": 60,
+  "shots": [
+    {
+      "idx": 1,
+      "seconds": 6,
+      "size": "1280x720",
+      "quality": "high",
+      "prompt": "Realistic cinematic footage of a modern AI data center, servers, technicians, blue cold lighting. 真实摄影、电影感、稳重科技、冷色调、自然光、浅景深、镜头运动克制、无文字无水印. Camera: slow dolly/steadycam, cinematic, realistic. No subtitles, no logos."
+    },
+    {
+      "idx": 2,
+      "seconds": 6,
+      "size": "1280x720",
+      "quality": "high",
+      "prompt": "Realistic cinematic footage of a modern AI data center, servers, technicians, blue cold lighting. 真实摄影、电影感、稳重科技、冷色调、自然光、浅景深、镜头运动克制、无文字无水印. Camera: slow dolly/steadycam, cinematic, realistic. No subtitles, no logos."
+    },
+    {
+      "idx": 3,
+      "seconds": 6,
+      "size": "1280x720",
+      "quality": "high",
+      "prompt": "Realistic cinematic footage of a modern AI data center, servers, technicians, blue cold lighting. 真实摄影、电影感、稳重科技、冷色调、自然光、浅景深、镜头运动克制、无文字无水印. Camera: slow dolly/steadycam, cinematic, realistic. No subtitles, no logos."
+    },
+    {
+      "idx": 4,
+      "seconds": 6,
+      "size": "1280x720",
+      "quality": "high",
+      "prompt": "Realistic cinematic footage of a modern AI data center, servers, technicians, blue cold lighting. 真实摄影、电影感、稳重科技、冷色调、自然光、浅景深、镜头运动克制、无文字无水印. Camera: slow dolly/steadycam, cinematic, realistic. No subtitles, no logos."
+    },
+    {
+      "idx": 5,
+      "seconds": 6,
+      "size": "1280x720",
+      "quality": "high",
+      "prompt": "Realistic cinematic footage of a modern AI data center, servers, technicians, blue cold lighting. 真实摄影、电影感、稳重科技、冷色调、自然光、浅景深、镜头运动克制、无文字无水印. Camera: slow dolly/steadycam, cinematic, realistic. No subtitles, no logos."
+    },
+    {
+      "idx": 6,
+      "seconds": 6,
+      "size": "1280x720",
+      "quality": "high",
+      "prompt": "Realistic cinematic footage of a modern AI data center, servers, technicians, blue cold lighting. 真实摄影、电影感、稳重科技、冷色调、自然光、浅景深、镜头运动克制、无文字无水印. Camera: slow dolly/steadycam, cinematic, realistic. No subtitles, no logos."
+    },
+    {
+      "idx": 7,
+      "seconds": 6,
+      "size": "1280x720",
+      "quality": "high",
+      "prompt": "Realistic cinematic footage of a modern AI data center, servers, technicians, blue cold lighting. 真实摄影、电影感、稳重科技、冷色调、自然光、浅景深、镜头运动克制、无文字无水印. Camera: slow dolly/steadycam, cinematic, realistic. No subtitles, no logos."
+    },
+    {
+      "idx": 8,
+      "seconds": 6,
+      "size": "1280x720",
+      "quality": "high",
+      "prompt": "Realistic cinematic footage of a modern AI data center, servers, technicians, blue cold lighting. 真实摄影、电影感、稳重科技、冷色调、自然光、浅景深、镜头运动克制、无文字无水印. Camera: slow dolly/steadycam, cinematic, realistic. No subtitles, no logos."
+    },
+    {
+      "idx": 9,
+      "seconds": 6,
+      "size": "1280x720",
+      "quality": "high",
+      "prompt": "Realistic cinematic footage of a modern AI data center, servers, technicians, blue cold lighting. 真实摄影、电影感、稳重科技、冷色调、自然光、浅景深、镜头运动克制、无文字无水印. Camera: slow dolly/steadycam, cinematic, realistic. No subtitles, no logos."
+    },
+    {
+      "idx": 10,
+      "seconds": 6,
+      "size": "1280x720",
+      "quality": "high",
+      "prompt": "Realistic cinematic footage of a modern AI data center, servers, technicians, blue cold lighting. 真实摄影、电影感、稳重科技、冷色调、自然光、浅景深、镜头运动克制、无文字无水印. Camera: slow dolly/steadycam, cinematic, realistic. No subtitles, no logos."
+    }
+  ],
+  "created_at": 1773678829
+}

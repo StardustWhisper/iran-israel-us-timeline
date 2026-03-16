@@ -1,0 +1,62 @@
+[
+  {
+    "idx": 1,
+    "url": "https://xai.lambda.xin/v1/files/video/users/2759ae95-99cd-40b0-a6fa-a1b6618f6fca/generated/8bffaa3b-e9f0-478f-92de-763d0377a1a9/generated_video_hd.mp4",
+    "path": "/home/ubuntu/.openclaw/workspace/video_pipeline/jobs/20260317_003349_bili_tech_test/clips/shot-001.mp4",
+    "duration": "6.041992"
+  },
+  {
+    "idx": 2,
+    "url": "https://xai.lambda.xin/v1/files/video/users/8b826f4f-1e9d-438b-a724-a5c7bdd78be3/generated/17c7dc54-9f50-4d27-b647-61afe85beaac/generated_video_hd.mp4",
+    "path": "/home/ubuntu/.openclaw/workspace/video_pipeline/jobs/20260317_003349_bili_tech_test/clips/shot-002.mp4",
+    "duration": "6.041992"
+  },
+  {
+    "idx": 3,
+    "url": "https://xai.lambda.xin/v1/files/video/users/4379aa77-f729-46de-b7e4-a4c791b25e8e/generated/87b699ba-daa0-433f-87ba-740c235d685c/generated_video_hd.mp4",
+    "path": "/home/ubuntu/.openclaw/workspace/video_pipeline/jobs/20260317_003349_bili_tech_test/clips/shot-003.mp4",
+    "duration": "6.041992"
+  },
+  {
+    "idx": 4,
+    "url": "https://xai.lambda.xin/v1/files/video/users/b8dbd490-bb0e-427a-9388-f55ee3c93e18/generated/6dd5b925-04a5-49da-aa12-ae6cf9d0d129/generated_video_hd.mp4",
+    "path": "/home/ubuntu/.openclaw/workspace/video_pipeline/jobs/20260317_003349_bili_tech_test/clips/shot-004.mp4",
+    "duration": "6.041992"
+  },
+  {
+    "idx": 5,
+    "url": "https://xai.lambda.xin/v1/files/video/users/89d990e5-f290-4047-a3da-f3c79bcc3bfa/generated/6404ca74-8669-40ee-92b0-dd58bd3a46da/generated_video_hd.mp4",
+    "path": "/home/ubuntu/.openclaw/workspace/video_pipeline/jobs/20260317_003349_bili_tech_test/clips/shot-005.mp4",
+    "duration": "6.041992"
+  },
+  {
+    "idx": 6,
+    "url": "https://xai.lambda.xin/v1/files/video/users/c48b88b8-a796-4f29-a1bd-0a963b86dcac/generated/224d87fb-1e1c-4eaf-ab50-5dddb856167d/generated_video_hd.mp4",
+    "path": "/home/ubuntu/.openclaw/workspace/video_pipeline/jobs/20260317_003349_bili_tech_test/clips/shot-006.mp4",
+    "duration": "6.041992"
+  },
+  {
+    "idx": 7,
+    "url": "https://xai.lambda.xin/v1/files/video/users/4f616798-060a-4bb8-a778-b86b9ab4e7c5/generated/8fdef5a9-7e22-48d6-aaaa-f5c8590d3ef8/generated_video_hd.mp4",
+    "path": "/home/ubuntu/.openclaw/workspace/video_pipeline/jobs/20260317_003349_bili_tech_test/clips/shot-007.mp4",
+    "duration": "6.041992"
+  },
+  {
+    "idx": 8,
+    "url": "https://xai.lambda.xin/v1/files/video/users/1ddd1993-f235-48a5-b6c0-7e7b665ff849/generated/60fedaf0-35fc-443c-9b0b-f70eead0ef98/generated_video_hd.mp4",
+    "path": "/home/ubuntu/.openclaw/workspace/video_pipeline/jobs/20260317_003349_bili_tech_test/clips/shot-008.mp4",
+    "duration": "6.041992"
+  },
+  {
+    "idx": 9,
+    "url": "https://xai.lambda.xin/v1/files/video/users/7ec9de70-2d7a-4126-897f-912ea6226b45/generated/b3126ba3-d524-47b1-893c-afd4576330de/generated_video_hd.mp4",
+    "path": "/home/ubuntu/.openclaw/workspace/video_pipeline/jobs/20260317_003349_bili_tech_test/clips/shot-009.mp4",
+    "duration": "6.041992"
+  },
+  {
+    "idx": 10,
+    "url": "https://xai.lambda.xin/v1/files/video/users/5f0d0b0b-49b5-404b-a421-7f98b77738ee/generated/4aefb7de-51c6-40ca-8c7a-ada64f3e31e6/generated_video_hd.mp4",
+    "path": "/home/ubuntu/.openclaw/workspace/video_pipeline/jobs/20260317_003349_bili_tech_test/clips/shot-010.mp4",
+    "duration": "6.041992"
+  }
+]

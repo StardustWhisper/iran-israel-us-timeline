@@ -1,0 +1,13 @@
+{
+  "id": "video_426237284d8f43b0a8b9e25d",
+  "object": "video",
+  "created_at": 1773678965,
+  "completed_at": 1773678965,
+  "status": "completed",
+  "model": "grok-imagine-1.0-video",
+  "prompt": "Realistic cinematic footage of a modern AI data center, servers, technicians, blue cold lighting. 真实摄影、电影感、稳重科技、冷色调、自然光、浅景深、镜头运动克制、无文字无水印. Camera: slow dolly/steadycam, cinematic, realistic. No subtitles, no logos.",
+  "size": "1280x720",
+  "seconds": "6",
+  "quality": "high",
+  "url": "http://127.0.0.1:8012/v1/files/video/users/b8dbd490-bb0e-427a-9388-f55ee3c93e18/generated/6dd5b925-04a5-49da-aa12-ae6cf9d0d129/generated_video_hd.mp4"
+}
