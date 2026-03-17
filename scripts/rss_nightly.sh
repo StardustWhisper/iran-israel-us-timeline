@@ -97,6 +97,7 @@ import json
 p='rss/brief.json'
 d=json.load(open(p,'r',encoding='utf-8'))
 print('RSS nightly OK')
+print('Version: rss_nightly v2026-03-17')
 print('Top:', d['top']['title'])
 print('URL:', d['top']['url'])
 print('Top3:')
