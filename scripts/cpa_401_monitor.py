@@ -32,7 +32,7 @@ TS_RE = re.compile(r"^Timestamp:\s*(.+)")
 JSON_LINE_RE = re.compile(r"^\{\"error\":\{.*\}\}$")
 
 # Default: alert when usage_limit_reached accumulates to this count in a day
-USAGE_LIMIT_ALERT_THRESHOLD = int(os.getenv("CPA_USAGE_LIMIT_ALERT_THRESHOLD", "5"))
+USAGE_LIMIT_ALERT_THRESHOLD = int(os.getenv("CPA_USAGE_LIMIT_ALERT_THRESHOLD", "10"))
 LOCAL_TZ = timezone(timedelta(hours=8))  # Asia/Shanghai
 
 @dataclass
