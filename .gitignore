@@ -1,0 +1,23 @@
+# Local state / caches
+memory/*_state.json
+memory/*state*.json
+
+# ClawHub / OpenClaw internal caches
+.clawhub/
+.openclaw/
+
+# Logs & tmp
+logs/
+tmp/
+__pycache__/
+**/__pycache__/
+*.log
+
+# Output artifacts
+wechat-publisher-out/
+video-out/
+article-images/
+video_pipeline/jobs/
+
+# If you want to track skills, remove this line
+skills/
