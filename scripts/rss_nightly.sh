@@ -17,8 +17,8 @@ set +a
 mkdir -p rss
 
 # Ensure at least one known RSSHub feed is present (36kr-tech)
-# blogwatcher output formatting may vary; match any whitespace.
-if ! blogwatcher blogs | grep -Eq "^[[:space:]]+36kr-tech[[:space:]]*$"; then
+# blogwatcher output formatting may vary; match optional whitespace.
+if ! blogwatcher blogs | grep -Eq "^[[:space:]]*36kr-tech[[:space:]]*$"; then
   blogwatcher add "36kr-tech" "https://www.36kr.com/information/technology" --feed-url "https://rss.lambda.xin/36kr/information/technology"
 fi
 
