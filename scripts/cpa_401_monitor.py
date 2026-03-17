@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Monitor CLIProxyAPIPlus error logs for HTTP 401 responses.
+"""Monitor CLIProxyAPIPlus error logs.
 
 - Scans deploy-cli-proxy/logs/error-*.log for new files since last run.
-- Extracts a small, non-sensitive summary (timestamp/url/status/error.message).
+- Extracts a small, non-sensitive summary (timestamp/url/status/error.type/error.message).
+- Tracks daily counts of error.type == "usage_limit_reached".
 - Writes state to workspace/memory/cpa_401_monitor_state.json.
 
 Exit codes:
-  0: no new 401 found
-  2: found one or more 401 (stdout contains alert text)
+  0: nothing to alert
+  2: should alert (stdout contains alert text)
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ import os
 import re
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 LOG_DIR = Path("/home/ubuntu/github/deploy-cli-proxy/logs")
@@ -30,12 +31,17 @@ TS_RE = re.compile(r"^Timestamp:\s*(.+)")
 # JSON error line in section "=== API RESPONSE ===" is often one-liner
 JSON_LINE_RE = re.compile(r"^\{\"error\":\{.*\}\}$")
 
+# Default: alert when usage_limit_reached accumulates to this count in a day
+USAGE_LIMIT_ALERT_THRESHOLD = int(os.getenv("CPA_USAGE_LIMIT_ALERT_THRESHOLD", "5"))
+LOCAL_TZ = timezone(timedelta(hours=8))  # Asia/Shanghai
+
 @dataclass
 class Hit:
     file: str
     timestamp: str | None
     url: str | None
     status: int | None
+    error_type: str | None
     message: str | None
 
 
@@ -59,13 +65,14 @@ def parse_log(path: Path) -> Hit:
     timestamp = None
     url = None
     status = None
+    error_type = None
     message = None
 
     # Read only first ~500 lines + last ~200 lines to avoid huge bodies
     try:
         lines = path.read_text(errors="replace").splitlines()
     except Exception:
-        return Hit(file=path.name, timestamp=None, url=None, status=None, message=None)
+        return Hit(file=path.name, timestamp=None, url=None, status=None, error_type=None, message=None)
 
     head = lines[:500]
     tail = lines[-200:] if len(lines) > 200 else []
@@ -91,14 +98,17 @@ def parse_log(path: Path) -> Hit:
                 except Exception:
                     status = None
                 continue
-        if message is None and JSON_LINE_RE.match(line.strip()):
+        if JSON_LINE_RE.match(line.strip()):
             try:
                 obj = json.loads(line.strip())
-                message = obj.get("error", {}).get("message")
+                if error_type is None:
+                    error_type = obj.get("error", {}).get("type")
+                if message is None:
+                    message = obj.get("error", {}).get("message")
             except Exception:
                 pass
 
-    return Hit(file=path.name, timestamp=timestamp, url=url, status=status, message=message)
+    return Hit(file=path.name, timestamp=timestamp, url=url, status=status, error_type=error_type, message=message)
 
 
 def main() -> int:
@@ -128,37 +138,72 @@ def main() -> int:
     hits: list[Hit] = []
     max_mtime = last_mtime
 
+    # Per-day counter for usage_limit_reached
+    usage_limit_hits = 0
+    usage_limit_date = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
+    usage_limit_counts = dict(state.get("usage_limit_counts", {}))
+    usage_limit_counts.setdefault(usage_limit_date, 0)
+
     for mtime, p in candidates:
         max_mtime = max(max_mtime, mtime)
         h = parse_log(p)
+
+        # Track usage limit errors (even if status is not 401)
+        if h.error_type == "usage_limit_reached":
+            usage_limit_hits += 1
+
         if h.status == 401:
             hits.append(h)
+
+    # Update rolling per-day counts
+    if usage_limit_hits:
+        usage_limit_counts[usage_limit_date] = int(usage_limit_counts.get(usage_limit_date, 0)) + usage_limit_hits
+
+    # Keep only recent 14 days to avoid unbounded growth
+    try:
+        cutoff = datetime.now(LOCAL_TZ) - timedelta(days=14)
+        usage_limit_counts = {
+            k: v for k, v in usage_limit_counts.items()
+            if datetime.strptime(k, "%Y-%m-%d").replace(tzinfo=LOCAL_TZ) >= cutoff
+        }
+    except Exception:
+        pass
 
     save_state({
         "last_mtime": max_mtime,
         "last_run": datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
         "scanned": len(candidates),
+        "usage_limit_counts": usage_limit_counts,
     })
 
-    if not hits:
-        return 0
+    # Priority 1: 401 immediate alert
+    if hits:
+        lines = []
+        lines.append(f"CPA-plus 失败请求告警：发现 {len(hits)} 条 401（最近 5 分钟新增日志）")
+        for i, h in enumerate(hits[:5], 1):
+            ts = h.timestamp or "(no timestamp)"
+            url = h.url or "(no url)"
+            msg = (h.message or "(no message)").strip()
+            if len(msg) > 200:
+                msg = msg[:200] + "…"
+            lines.append(f"{i}. {ts} {url} :: {msg}")
+        if len(hits) > 5:
+            lines.append(f"… 还有 {len(hits)-5} 条未展开")
+        sys.stdout.write("\n".join(lines) + "\n")
+        return 2
 
-    # Build a short alert message
-    lines = []
-    lines.append(f"CPA-plus 失败请求告警：发现 {len(hits)} 条 401（最近 5 分钟新增日志）")
-    for i, h in enumerate(hits[:5], 1):
-        ts = h.timestamp or "(no timestamp)"
-        url = h.url or "(no url)"
-        msg = (h.message or "(no message)").strip()
-        # keep message short
-        if len(msg) > 200:
-            msg = msg[:200] + "…"
-        lines.append(f"{i}. {ts} {url} :: {msg}")
-    if len(hits) > 5:
-        lines.append(f"… 还有 {len(hits)-5} 条未展开")
+    # Priority 2: usage_limit_reached accumulation alert (threshold per day)
+    today_total = int(usage_limit_counts.get(usage_limit_date, 0))
+    if today_total >= USAGE_LIMIT_ALERT_THRESHOLD and usage_limit_hits:
+        sys.stdout.write(
+            "\n".join([
+                f"CPA-plus 用量告警：检测到 usage_limit_reached（今日累计 {today_total} 次，阈值 {USAGE_LIMIT_ALERT_THRESHOLD}）",
+                "建议：检查是否触发了上游配额/并发/速率限制，并考虑降级/重试退避。",
+            ]) + "\n"
+        )
+        return 2
 
-    sys.stdout.write("\n".join(lines) + "\n")
-    return 2
+    return 0
 
 
 if __name__ == "__main__":
