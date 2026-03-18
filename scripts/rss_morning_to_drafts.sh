@@ -21,16 +21,18 @@ if [[ ! -f "$BRIEF" ]]; then
   fi
 fi
 
+export BRIEF
+
 TITLE=$(python3 - <<'PY'
-import json
-p='$BRIEF'
+import json, os
+p=os.environ['BRIEF']
 d=json.load(open(p,'r',encoding='utf-8'))
 print(d['top']['title'])
 PY
 )
 URL=$(python3 - <<'PY'
-import json
-p='$BRIEF'
+import json, os
+p=os.environ['BRIEF']
 d=json.load(open(p,'r',encoding='utf-8'))
 print(d['top']['url'])
 PY
@@ -40,12 +42,33 @@ DATE_DIR=$(date +%Y%m%d)
 OUT_DIR="$HOME/.openclaw/workspace/wechat-publisher-out/auto/$DATE_DIR"
 mkdir -p "$OUT_DIR"
 
-# 1) Let HUGO write article (markdown) based on topic + URL (grounding is handled by HUGO prompt; we include the URL for reference)
+# 1) Build a small research brief from current RSS corpus so HUGO can synthesize, not merely rewrite the source link.
+RESEARCH_JSON="$OUT_DIR/research.json"
+export RESEARCH_JSON
+python3 scripts/rss_topic_research.py \
+  --title "$TITLE" \
+  --source-url "$URL" \
+  --corpus "rss/all-new.json" \
+  --out "$RESEARCH_JSON"
+
+RESEARCH_BRIEF=$(python3 - <<'PY'
+import json, os
+p = os.path.expanduser(os.environ['RESEARCH_JSON'])
+d = json.load(open(p, 'r', encoding='utf-8'))
+lines = []
+lines.append('补充资料（来自当前 RSS 候选池，可用于拓展背景，不要逐条照抄）：')
+for i, it in enumerate(d.get('related') or [], 1):
+    lines.append(f"{i}. [{it.get('source')}] {it.get('title')} — {it.get('url')}")
+print('\\n'.join(lines))
+PY
+)
+
+# 2) Let HUGO write article (markdown) based on topic + source URL + related materials.
 ARTICLE_JSON="$OUT_DIR/hugo.json"
 ARTICLE_MD_RAW="$OUT_DIR/article_raw.md"
-export ARTICLE_JSON ARTICLE_MD_RAW
+export ARTICLE_JSON ARTICLE_MD_RAW RESEARCH_JSON
 
-bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 --json --message "写一篇科技公众号科普文章，主题来自热点：\n\n标题建议围绕：${TITLE}\n参考链接（仅作为事实边界，不要编造具体数字）：${URL}\n\n要求：\n- 受众：懂一点科技的普通读者\n- 结构：抓人开头→发生了什么→核心机制讲解(3-5点)→常见误区→结论&关注信号\n- 风格：口语但不油腻，信息密度高\n- 长度：1800-2400字\n- 末尾加‘参考阅读’列出上述链接\n- 另外输出：封面图提示词（无文字版）3个备选（英文prompt+negative，强调 no text）\n" > "$ARTICLE_JSON"
+bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 --json --message "写一篇科技公众号科普文章，主题来自热点：\n\n标题建议围绕：${TITLE}\n主参考链接（仅作为事实边界，不要编造具体数字）：${URL}\n\n${RESEARCH_BRIEF}\n\n要求：\n- 受众：懂一点科技的普通读者\n- 不要只改写主参考链接，要综合补充资料，提炼更完整的背景、机制和产业语境\n- 如果补充资料与主参考链接角度不同，可以用于解释上下文，但不要编造它们没有明确支持的事实\n- 结构：抓人开头→发生了什么→核心机制讲解(3-5点)→常见误区→结论&关注信号\n- 风格：口语但不油腻，信息密度高\n- 长度：1800-2400字\n- 末尾加‘参考阅读’，至少包含主参考链接；若正文确实吸收了补充资料，也可列出 2-4 条最相关补充链接\n- 另外输出：封面图提示词（无文字版）3个备选（英文prompt+negative，强调 no text）\n" > "$ARTICLE_JSON"
 
 python3 - <<'PY'
 import json, pathlib, os
