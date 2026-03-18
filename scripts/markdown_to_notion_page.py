@@ -8,6 +8,8 @@ import re
 import urllib.request
 import urllib.error
 from pathlib import Path
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 NOTION_VERSION = os.environ.get('NOTION_VERSION', '2022-06-28')
 TOKEN = os.environ.get('NOTION_TOKEN')
@@ -147,7 +149,8 @@ def main():
     if '发布状态' in props:
         page_props['发布状态'] = {'select': {'name': '草稿'}}
     if '时间' in props:
-        page_props['时间'] = {'date': {'start': __import__('datetime').datetime.now().isoformat()}}
+        shanghai_now = datetime.now(ZoneInfo('Asia/Shanghai')).replace(microsecond=0)
+        page_props['时间'] = {'date': {'start': shanghai_now.isoformat()}}
 
     page_payload = {
         'parent': {'database_id': args.database_id},
