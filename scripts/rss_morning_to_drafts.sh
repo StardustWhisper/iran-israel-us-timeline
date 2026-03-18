@@ -10,6 +10,20 @@ set -a
 source "$HOME/.openclaw/.env" 2>/dev/null || true
 set +a
 
+STAGE="init"
+WEB_RESEARCH_STATUS="pending"
+ARTICLE_STATUS="pending"
+COVER_STATUS="pending"
+NOTION_SYNC_STATUS="pending"
+WECHAT_MEDIA_ID=""
+
+on_error() {
+  local exit_code=$?
+  echo "MORNING_FAIL stage=$STAGE web_research_status=$WEB_RESEARCH_STATUS article_status=$ARTICLE_STATUS cover_status=$COVER_STATUS notion_status=$NOTION_SYNC_STATUS media_id=$WECHAT_MEDIA_ID" >&2
+  exit "$exit_code"
+}
+trap on_error ERR
+
 BRIEF="rss/brief.json"
 if [[ ! -f "$BRIEF" ]]; then
   # backward compat
@@ -44,6 +58,7 @@ OUT_DIR="$HOME/.openclaw/workspace/wechat-publisher-out/auto/$DATE_DIR${RUN_SUFF
 mkdir -p "$OUT_DIR"
 
 # 1) Build research briefs so HUGO can synthesize, not merely rewrite the source link.
+STAGE="research"
 RESEARCH_JSON="$OUT_DIR/research.json"
 WEB_RESEARCH_RAW="$OUT_DIR/web_research_raw.json"
 WEB_RESEARCH_JSON="$OUT_DIR/web_research.json"
@@ -149,6 +164,7 @@ PY
 )
 
 # 2) Let HUGO write article (markdown) based on topic + source URL + RSS/web research materials — best effort.
+STAGE="drafting"
 ARTICLE_JSON="$OUT_DIR/hugo.json"
 ARTICLE_MD_RAW="$OUT_DIR/article_raw.md"
 ARTICLE_STATUS="generated"
@@ -190,6 +206,7 @@ PY
 fi
 
 # 2) Generate a cover image via DALI — best effort; fallback to default cover instead of blocking publish.
+STAGE="cover"
 COVER_SRC="$OUT_DIR/cover_src.png"
 COVER_JPG="$OUT_DIR/cover.jpg"
 DEFAULT_COVER="${DEFAULT_WECHAT_COVER:-$HOME/.openclaw/workspace/dali_cover_notext_v2.png}"
@@ -239,6 +256,7 @@ print('WROTE', str(final_md))
 PY
 
 # 4) Publish to WeChat drafts
+STAGE="wechat_publish"
 WECHAT_MEDIA_ID="${WECHAT_MEDIA_ID:-}"
 if [[ "${NOTION_ONLY:-0}" != "1" ]]; then
   WECHAT_PUBLISH_LOG="$OUT_DIR/wechat_publish.log"
@@ -256,6 +274,7 @@ PY
 fi
 
 # 5) Sync to Notion for mobile reading — best effort; failure should not block WeChat draft delivery.
+STAGE="notion_sync"
 NOTION_ARTICLE_DATABASE_ID="${NOTION_ARTICLE_DATABASE_ID:-3188bd97-88dd-8034-ae05-d4c7f2b4b10e}"
 NOTION_SYNC_LOG="$OUT_DIR/notion_sync.json"
 NOTION_SYNC_STATUS="ok"
@@ -269,4 +288,5 @@ if ! python3 "$HOME/.openclaw/workspace/scripts/markdown_to_notion_page.py" \
   echo "WARN: Notion sync failed; see $NOTION_SYNC_LOG" >&2
 fi
 
-echo "DRAFT_OK title=$TITLE url=$URL out=$OUT_DIR notion_db=$NOTION_ARTICLE_DATABASE_ID notion_status=$NOTION_SYNC_STATUS media_id=$WECHAT_MEDIA_ID cover_status=$COVER_STATUS article_status=$ARTICLE_STATUS web_research_status=$WEB_RESEARCH_STATUS"
+STAGE="done"
+echo "MORNING_OK title=$TITLE url=$URL out=$OUT_DIR media_id=$WECHAT_MEDIA_ID web_research_status=$WEB_RESEARCH_STATUS article_status=$ARTICLE_STATUS cover_status=$COVER_STATUS notion_status=$NOTION_SYNC_STATUS"
