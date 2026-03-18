@@ -165,20 +165,38 @@ article_md_raw.write_text(text.strip() + '\n', encoding='utf-8')
 print('WROTE', str(article_md_raw))
 PY
 
-# 2) Generate a cover image via DALI (grok2api) — no text
+# 2) Generate a cover image via DALI — best effort; fallback to default cover instead of blocking publish.
 COVER_SRC="$OUT_DIR/cover_src.png"
 COVER_JPG="$OUT_DIR/cover.jpg"
+DEFAULT_COVER="${DEFAULT_WECHAT_COVER:-$HOME/.openclaw/workspace/dali_cover_notext_v2.png}"
 COVER_PROMPT="Clean modern editorial illustration cover for a Chinese tech article about AI agents and inference compute. Bright optimistic palette, clean bold outlines, cel shading, futuristic city datacenter + agent icons, lots of empty space, no text, no letters, no numbers, no signage, no logos, no UI panels"
+COVER_STATUS="generated"
 
-bash "$HOME/.openclaw/workspace-dali/scripts/grok2api_image.sh" generate \
+if ! bash "$HOME/.openclaw/workspace-dali/scripts/grok2api_image.sh" generate \
   --model grok-imagine-1.0 \
   --size 1792x1024 \
   --prompt "$COVER_PROMPT" \
   --out "$COVER_SRC" \
-  >/dev/null
+  >/dev/null 2>&1; then
+  COVER_STATUS="default"
+fi
 
-# Resize/crop to 1080x864 (wenyan cover preference) and convert to jpg
-ffmpeg -y -i "$COVER_SRC" -vf "scale=1080:864:force_original_aspect_ratio=increase,crop=1080:864" -q:v 2 "$COVER_JPG" >/dev/null 2>&1
+if [[ "$COVER_STATUS" == "generated" ]] && [[ -f "$COVER_SRC" ]]; then
+  if ! ffmpeg -y -i "$COVER_SRC" -vf "scale=1080:864:force_original_aspect_ratio=increase,crop=1080:864" -q:v 2 "$COVER_JPG" >/dev/null 2>&1; then
+    COVER_STATUS="default"
+  fi
+else
+  COVER_STATUS="default"
+fi
+
+if [[ "$COVER_STATUS" == "default" ]]; then
+  if [[ -f "$DEFAULT_COVER" ]]; then
+    cp "$DEFAULT_COVER" "$COVER_JPG"
+  else
+    echo "Cover generation failed and default cover missing: $DEFAULT_COVER" >&2
+    exit 3
+  fi
+fi
 
 # 3) Wrap article with frontmatter for wechat-publisher
 FINAL_MD="$OUT_DIR/article.md"
@@ -213,14 +231,18 @@ PY
 )
 fi
 
-# 5) Sync to Notion for mobile reading
+# 5) Sync to Notion for mobile reading — best effort; failure should not block WeChat draft delivery.
 NOTION_ARTICLE_DATABASE_ID="${NOTION_ARTICLE_DATABASE_ID:-3188bd97-88dd-8034-ae05-d4c7f2b4b10e}"
 NOTION_SYNC_LOG="$OUT_DIR/notion_sync.json"
-python3 "$HOME/.openclaw/workspace/scripts/markdown_to_notion_page.py" \
+NOTION_SYNC_STATUS="ok"
+if ! python3 "$HOME/.openclaw/workspace/scripts/markdown_to_notion_page.py" \
   --md "$FINAL_MD" \
   --database-id "$NOTION_ARTICLE_DATABASE_ID" \
   --source-url "$URL" \
   --topic "$TITLE" \
-  --wechat-media-id "$WECHAT_MEDIA_ID" | tee "$NOTION_SYNC_LOG"
+  --wechat-media-id "$WECHAT_MEDIA_ID" | tee "$NOTION_SYNC_LOG"; then
+  NOTION_SYNC_STATUS="failed"
+  echo "WARN: Notion sync failed; see $NOTION_SYNC_LOG" >&2
+fi
 
-echo "DRAFT_OK title=$TITLE url=$URL out=$OUT_DIR notion_db=$NOTION_ARTICLE_DATABASE_ID media_id=$WECHAT_MEDIA_ID"
+echo "DRAFT_OK title=$TITLE url=$URL out=$OUT_DIR notion_db=$NOTION_ARTICLE_DATABASE_ID notion_status=$NOTION_SYNC_STATUS media_id=$WECHAT_MEDIA_ID cover_status=$COVER_STATUS"
