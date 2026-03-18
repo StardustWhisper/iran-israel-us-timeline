@@ -67,6 +67,30 @@ def score_item(title: str, keywords: list[str], source_url: str) -> int:
     return score
 
 
+def detect_template(title: str) -> str:
+    t = title.lower()
+    if any(x in t for x in ['prompt injection', '提示注入', '安全', '越狱']):
+        return 'security'
+    if any(x in t for x in ['agent', '智能体', 'saas']):
+        return 'agent-industry'
+    if any(x in t for x in ['gtc', 'nvidia', '英伟达', 'gpu', '算力', '推理']):
+        return 'compute-industry'
+    return 'general-tech'
+
+
+SOURCE_WEIGHT = {
+    'openai-news': 3,
+    'github-blog': 2,
+    'github-changelog': 2,
+    'aws-news': 2,
+    'microsoft-research': 2,
+    'infoq': 2,
+    '36kr-tech': 1,
+    'hackernews': 0,
+    'v2ex-latest': 0,
+}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument('--title', required=True)
@@ -79,8 +103,9 @@ def main() -> None:
     data = json.loads(corpus_path.read_text(encoding='utf-8'))
     items = data.get('items') or []
     keywords = expand_keywords(args.title)
+    template = detect_template(args.title)
 
-    related = []
+    dedup = {}
     for it in items:
         t = (it.get('title') or '').strip()
         u = (it.get('url') or '').strip()
@@ -89,20 +114,27 @@ def main() -> None:
         if u == args.source_url:
             continue
         s = score_item(t, keywords, args.source_url)
-        if s > 0:
-            related.append({
-                'title': t,
-                'url': u,
-                'source': it.get('sourceBlog') or it.get('source') or 'unknown',
-                'published': it.get('published'),
-                'score': s,
-            })
+        source = it.get('sourceBlog') or it.get('source') or 'unknown'
+        s += SOURCE_WEIGHT.get(source, 0)
+        if s <= 0:
+            continue
+        item = {
+            'title': t,
+            'url': u,
+            'source': source,
+            'published': it.get('published'),
+            'score': s,
+        }
+        old = dedup.get(u)
+        if old is None or item['score'] > old['score']:
+            dedup[u] = item
 
-    related.sort(key=lambda x: (-x['score'], x['source'], x['title']))
+    related = sorted(dedup.values(), key=lambda x: (-x['score'], x['source'], x['title']))
     top_related = related[:8]
 
     out = {
         'topic': args.title,
+        'template': template,
         'keywords': keywords,
         'related': top_related,
     }

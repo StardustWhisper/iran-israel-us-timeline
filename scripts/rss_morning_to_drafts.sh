@@ -54,6 +54,15 @@ python3 scripts/rss_topic_research.py \
   --corpus "rss/all-new.json" \
   --out "$RESEARCH_JSON"
 
+TOPIC_TEMPLATE=$(python3 - <<'PY'
+import json, os
+p = os.path.expanduser(os.environ['RESEARCH_JSON'])
+d = json.load(open(p, 'r', encoding='utf-8'))
+print(d.get('template') or 'general-tech')
+PY
+)
+export TOPIC_TEMPLATE
+
 # 1a) Ask an agent to do lightweight web research and return STRICT JSON only.
 bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 --json --message "你现在不是写文章，而是在做选题研究。请使用联网搜索，围绕下面这个主题补充 3-6 条高质量资料，优先官方来源、主流科技媒体、研究机构。
 
@@ -76,23 +85,11 @@ bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 
 - 如果某条信息把握不大，就不要写进 summary
 " > "$WEB_RESEARCH_RAW"
 
-python3 - <<'PY'
-import json, os, pathlib
-rawp = pathlib.Path(os.environ['WEB_RESEARCH_RAW'])
-outp = pathlib.Path(os.environ['WEB_RESEARCH_JSON'])
-content = rawp.read_text(encoding='utf-8')
-start = content.find('{')
-end = content.rfind('}')
-if start == -1 or end == -1 or end < start:
-    data = {"summary": [], "sources": [], "angles": []}
-else:
-    try:
-        data = json.loads(content[start:end+1])
-    except Exception:
-        data = {"summary": [], "sources": [], "angles": []}
-outp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-print('WROTE', outp)
-PY
+python3 scripts/rss_web_research_normalize.py \
+  --in "$WEB_RESEARCH_RAW" \
+  --out "$WEB_RESEARCH_JSON" \
+  --title "$TITLE" \
+  --source-url "$URL"
 
 RESEARCH_BRIEF=$(python3 - <<'PY'
 import json, os
@@ -101,12 +98,14 @@ web_p = os.path.expanduser(os.environ['WEB_RESEARCH_JSON'])
 rss = json.load(open(rss_p, 'r', encoding='utf-8'))
 web = json.load(open(web_p, 'r', encoding='utf-8'))
 lines = []
+lines.append(f"选题模板：{rss.get('template') or 'general-tech'}")
 lines.append('补充资料（来自当前 RSS 候选池，可用于拓展背景，不要逐条照抄）：')
 for i, it in enumerate(rss.get('related') or [], 1):
     lines.append(f"{i}. [{it.get('source')}] {it.get('title')} — {it.get('url')}")
 if web.get('summary') or web.get('sources') or web.get('angles'):
     lines.append('')
     lines.append('外部 research 摘要（通过联网搜索整理，可用于补强文章深度）：')
+    lines.append(f"- 质量检查：{'通过' if web.get('qualityOk') else '偏弱，尽量保守写作'}")
     for i, s in enumerate(web.get('summary') or [], 1):
         lines.append(f"- 要点{i}：{s}")
     if web.get('angles'):
@@ -120,12 +119,26 @@ print('\\n'.join(lines))
 PY
 )
 
+ARTICLE_STRUCTURE=$(python3 - <<'PY'
+import os
+m = os.environ.get('TOPIC_TEMPLATE', 'general-tech')
+if m == 'security':
+    print('结构：抓人开头→什么是这类风险→为什么现在更值得关注→典型攻击/失误路径→工程上怎么防→普通团队现在该做什么→结论')
+elif m == 'agent-industry':
+    print('结构：抓人开头→发生了什么→这句话真正指向什么→为什么 Agent 会冲击现有软件形态→哪些环节不会被取代→对创业公司和普通用户意味着什么→结论')
+elif m == 'compute-industry':
+    print('结构：抓人开头→发生了什么→为什么算力/推理成为核心矛盾→背后的技术和产业机制→常见误区→接下来值得关注什么→结论')
+else:
+    print('结构：抓人开头→发生了什么→核心机制讲解(3-5点)→常见误区→结论&关注信号')
+PY
+)
+
 # 2) Let HUGO write article (markdown) based on topic + source URL + RSS/web research materials.
 ARTICLE_JSON="$OUT_DIR/hugo.json"
 ARTICLE_MD_RAW="$OUT_DIR/article_raw.md"
 export ARTICLE_JSON ARTICLE_MD_RAW RESEARCH_JSON WEB_RESEARCH_JSON
 
-bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 --json --message "请直接写一篇可发布到微信公众号的科技科普文章。\n\n主题：${TITLE}\n主参考链接（仅作为事实边界，不要编造具体数字）：${URL}\n\n${RESEARCH_BRIEF}\n\n硬性要求：\n- 最终输出必须是【可直接发表的正文 Markdown】\n- 不要输出任何写作说明、提示词、封面建议、编者按、备注、TODO、附加解释\n- 不要出现‘以下是文章’‘可直接发布’‘供你参考’之类的前言\n- 只输出文章本身\n- 不要只改写主参考链接，要综合 RSS 补充资料和外部 research，提炼更完整的背景、机制和产业语境\n- 如果补充资料与主参考链接角度不同，可以用于解释上下文，但不要编造它们没有明确支持的事实\n- 受众：懂一点科技的普通读者\n- 结构：抓人开头→发生了什么→核心机制讲解(3-5点)→常见误区→结论&关注信号\n- 风格：口语但不油腻，信息密度高\n- 长度：1800-2400字\n- 文末加‘参考阅读’，至少包含主参考链接；若正文确实吸收了补充资料，也可列出 2-5 条最相关链接\n" > "$ARTICLE_JSON"
+bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 --json --message "请直接写一篇可发布到微信公众号的科技科普文章。\n\n主题：${TITLE}\n主参考链接（仅作为事实边界，不要编造具体数字）：${URL}\n\n${RESEARCH_BRIEF}\n\n硬性要求：\n- 最终输出必须是【可直接发表的正文 Markdown】\n- 不要输出任何写作说明、提示词、封面建议、编者按、备注、TODO、附加解释\n- 不要出现‘以下是文章’‘可直接发布’‘供你参考’之类的前言\n- 只输出文章本身\n- 不要只改写主参考链接，要综合 RSS 补充资料和外部 research，提炼更完整的背景、机制和产业语境\n- 如果外部 research 质量偏弱，就保守吸收，只把确定性高的内容写进正文\n- 如果补充资料与主参考链接角度不同，可以用于解释上下文，但不要编造它们没有明确支持的事实\n- 受众：懂一点科技的普通读者\n- ${ARTICLE_STRUCTURE}\n- 风格：口语但不油腻，信息密度高\n- 长度：1800-2400字\n- 文末加‘参考阅读’，至少包含主参考链接；若正文确实吸收了补充资料，也可列出 2-5 条最相关链接\n" > "$ARTICLE_JSON"
 
 python3 - <<'PY'
 import json, pathlib, os, re
