@@ -39,7 +39,8 @@ PY
 )
 
 DATE_DIR=$(date +%Y%m%d)
-OUT_DIR="$HOME/.openclaw/workspace/wechat-publisher-out/auto/$DATE_DIR"
+RUN_SUFFIX="${RUN_SUFFIX:-}"
+OUT_DIR="$HOME/.openclaw/workspace/wechat-publisher-out/auto/$DATE_DIR${RUN_SUFFIX}"
 mkdir -p "$OUT_DIR"
 
 # 1) Build research briefs so HUGO can synthesize, not merely rewrite the source link.
@@ -81,7 +82,7 @@ bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 
   ],
   \"angles\": [\"可展开角度1\", \"可展开角度2\"]
 }
-- `sources` 里尽量不要重复主参考链接
+- sources 字段里尽量不要重复主参考链接
 - 如果某条信息把握不大，就不要写进 summary
 " > "$WEB_RESEARCH_RAW"
 
@@ -196,6 +197,30 @@ print('WROTE', str(final_md))
 PY
 
 # 4) Publish to WeChat drafts
-bash "$HOME/.openclaw/workspace/skills/wechat-publisher/scripts/publish.sh" "$FINAL_MD" lapis solarized-light
+WECHAT_MEDIA_ID="${WECHAT_MEDIA_ID:-}"
+if [[ "${NOTION_ONLY:-0}" != "1" ]]; then
+  WECHAT_PUBLISH_LOG="$OUT_DIR/wechat_publish.log"
+  export WECHAT_PUBLISH_LOG
+  bash "$HOME/.openclaw/workspace/skills/wechat-publisher/scripts/publish.sh" "$FINAL_MD" lapis solarized-light | tee "$WECHAT_PUBLISH_LOG"
 
-echo "DRAFT_OK title=$TITLE url=$URL out=$OUT_DIR"
+  WECHAT_MEDIA_ID=$(python3 - <<'PY'
+import os, re, pathlib
+p = pathlib.Path(os.environ['WECHAT_PUBLISH_LOG'])
+text = p.read_text(encoding='utf-8') if p.exists() else ''
+m = re.search(r'Media ID:\s*([A-Za-z0-9_\-]+)', text)
+print(m.group(1) if m else '')
+PY
+)
+fi
+
+# 5) Sync to Notion for mobile reading
+NOTION_ARTICLE_DATABASE_ID="${NOTION_ARTICLE_DATABASE_ID:-3188bd97-88dd-8034-ae05-d4c7f2b4b10e}"
+NOTION_SYNC_LOG="$OUT_DIR/notion_sync.json"
+python3 "$HOME/.openclaw/workspace/scripts/markdown_to_notion_page.py" \
+  --md "$FINAL_MD" \
+  --database-id "$NOTION_ARTICLE_DATABASE_ID" \
+  --source-url "$URL" \
+  --topic "$TITLE" \
+  --wechat-media-id "$WECHAT_MEDIA_ID" | tee "$NOTION_SYNC_LOG"
+
+echo "DRAFT_OK title=$TITLE url=$URL out=$OUT_DIR notion_db=$NOTION_ARTICLE_DATABASE_ID media_id=$WECHAT_MEDIA_ID"
