@@ -64,8 +64,9 @@ PY
 )
 export TOPIC_TEMPLATE
 
-# 1a) Ask an agent to do lightweight web research and return STRICT JSON only.
-bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 --json --message "你现在不是写文章，而是在做选题研究。请使用联网搜索，围绕下面这个主题补充 3-6 条高质量资料，优先官方来源、主流科技媒体、研究机构。
+# 1a) Ask an agent to do lightweight web research and return STRICT JSON only — best effort.
+WEB_RESEARCH_STATUS="ok"
+if ! bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 --json --message "你现在不是写文章，而是在做选题研究。请使用联网搜索，围绕下面这个主题补充 3-6 条高质量资料，优先官方来源、主流科技媒体、研究机构。
 
 主题：${TITLE}
 主参考链接：${URL}
@@ -84,13 +85,26 @@ bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 
 }
 - sources 字段里尽量不要重复主参考链接
 - 如果某条信息把握不大，就不要写进 summary
-" > "$WEB_RESEARCH_RAW"
-
-python3 scripts/rss_web_research_normalize.py \
-  --in "$WEB_RESEARCH_RAW" \
-  --out "$WEB_RESEARCH_JSON" \
-  --title "$TITLE" \
-  --source-url "$URL"
+" > "$WEB_RESEARCH_RAW"; then
+  WEB_RESEARCH_STATUS="failed"
+  export TITLE
+  python3 - <<'PY' > "$WEB_RESEARCH_JSON"
+import json, os
+print(json.dumps({
+    'topic': os.environ['TITLE'],
+    'qualityOk': False,
+    'summary': [],
+    'sources': [],
+    'angles': [],
+}, ensure_ascii=False, indent=2))
+PY
+else
+  python3 scripts/rss_web_research_normalize.py \
+    --in "$WEB_RESEARCH_RAW" \
+    --out "$WEB_RESEARCH_JSON" \
+    --title "$TITLE" \
+    --source-url "$URL"
+fi
 
 RESEARCH_BRIEF=$(python3 - <<'PY'
 import json, os
@@ -134,19 +148,20 @@ else:
 PY
 )
 
-# 2) Let HUGO write article (markdown) based on topic + source URL + RSS/web research materials.
+# 2) Let HUGO write article (markdown) based on topic + source URL + RSS/web research materials — best effort.
 ARTICLE_JSON="$OUT_DIR/hugo.json"
 ARTICLE_MD_RAW="$OUT_DIR/article_raw.md"
+ARTICLE_STATUS="generated"
 export ARTICLE_JSON ARTICLE_MD_RAW RESEARCH_JSON WEB_RESEARCH_JSON
 
-bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 --json --message "请直接写一篇可发布到微信公众号的科技科普文章。\n\n主题：${TITLE}\n主参考链接（仅作为事实边界，不要编造具体数字）：${URL}\n\n${RESEARCH_BRIEF}\n\n硬性要求：\n- 最终输出必须是【可直接发表的正文 Markdown】\n- 不要输出任何写作说明、提示词、封面建议、编者按、备注、TODO、附加解释\n- 不要出现‘以下是文章’‘可直接发布’‘供你参考’之类的前言\n- 只输出文章本身\n- 不要只改写主参考链接，要综合 RSS 补充资料和外部 research，提炼更完整的背景、机制和产业语境\n- 如果外部 research 质量偏弱，就保守吸收，只把确定性高的内容写进正文\n- 如果补充资料与主参考链接角度不同，可以用于解释上下文，但不要编造它们没有明确支持的事实\n- 受众：懂一点科技的普通读者\n- ${ARTICLE_STRUCTURE}\n- 风格：口语但不油腻，信息密度高\n- 长度：1800-2400字\n- 文末加‘参考阅读’，至少包含主参考链接；若正文确实吸收了补充资料，也可列出 2-5 条最相关链接\n" > "$ARTICLE_JSON"
-
-python3 - <<'PY'
+if ! bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 --json --message "请直接写一篇可发布到微信公众号的科技科普文章。\n\n主题：${TITLE}\n主参考链接（仅作为事实边界，不要编造具体数字）：${URL}\n\n${RESEARCH_BRIEF}\n\n硬性要求：\n- 最终输出必须是【可直接发表的正文 Markdown】\n- 不要输出任何写作说明、提示词、封面建议、编者按、备注、TODO、附加解释\n- 不要出现‘以下是文章’‘可直接发布’‘供你参考’之类的前言\n- 只输出文章本身\n- 不要只改写主参考链接，要综合 RSS 补充资料和外部 research，提炼更完整的背景、机制和产业语境\n- 如果外部 research 质量偏弱，就保守吸收，只把确定性高的内容写进正文\n- 如果补充资料与主参考链接角度不同，可以用于解释上下文，但不要编造它们没有明确支持的事实\n- 受众：懂一点科技的普通读者\n- ${ARTICLE_STRUCTURE}\n- 风格：口语但不油腻，信息密度高\n- 长度：1800-2400字\n- 文末加‘参考阅读’，至少包含主参考链接；若正文确实吸收了补充资料，也可列出 2-5 条最相关链接\n" > "$ARTICLE_JSON"; then
+  ARTICLE_STATUS="reused"
+else
+  if python3 - <<'PY'
 import json, pathlib, os, re
 article_json = pathlib.Path(os.environ['ARTICLE_JSON'])
 article_md_raw = pathlib.Path(os.environ['ARTICLE_MD_RAW'])
 content = article_json.read_text(encoding='utf-8')
-# openclaw_cli.sh may emit non-JSON log lines before the JSON payload (e.g. plugin registration).
 start = content.find('{')
 if start == -1:
     raise SystemExit('No JSON object found in ' + str(article_json))
@@ -164,6 +179,15 @@ for pat in patterns:
 article_md_raw.write_text(text.strip() + '\n', encoding='utf-8')
 print('WROTE', str(article_md_raw))
 PY
+  then
+    ARTICLE_STATUS="generated"
+  elif [[ -s "$ARTICLE_MD_RAW" ]]; then
+    ARTICLE_STATUS="reused"
+  else
+    echo "Article generation failed and no reusable raw draft found" >&2
+    exit 4
+  fi
+fi
 
 # 2) Generate a cover image via DALI — best effort; fallback to default cover instead of blocking publish.
 COVER_SRC="$OUT_DIR/cover_src.png"
@@ -245,4 +269,4 @@ if ! python3 "$HOME/.openclaw/workspace/scripts/markdown_to_notion_page.py" \
   echo "WARN: Notion sync failed; see $NOTION_SYNC_LOG" >&2
 fi
 
-echo "DRAFT_OK title=$TITLE url=$URL out=$OUT_DIR notion_db=$NOTION_ARTICLE_DATABASE_ID notion_status=$NOTION_SYNC_STATUS media_id=$WECHAT_MEDIA_ID cover_status=$COVER_STATUS"
+echo "DRAFT_OK title=$TITLE url=$URL out=$OUT_DIR notion_db=$NOTION_ARTICLE_DATABASE_ID notion_status=$NOTION_SYNC_STATUS media_id=$WECHAT_MEDIA_ID cover_status=$COVER_STATUS article_status=$ARTICLE_STATUS web_research_status=$WEB_RESEARCH_STATUS"
