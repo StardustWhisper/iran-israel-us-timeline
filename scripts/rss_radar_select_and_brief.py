@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 """Select top topic from RSS items and produce a brief for HUGO.
 
-Inputs:
-- items JSON from rss_radar_fetch.py
-Outputs:
-- brief JSON to stdout or file
-
 Scoring is heuristic with novelty penalties:
 - Prefer AI/compute/agent topics for now
 - Prefer explanatory potential and visualizability
 - Penalize topics too similar to recently drafted/published article titles
+- Recent history can come from local drafts and Notion article database
 """
 
 from __future__ import annotations
@@ -17,7 +13,9 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import re
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -54,6 +52,8 @@ NARRATIVE_PATTERNS = {
     "consumer-hardware": r"手机|PC|眼镜|终端|玩家",
 }
 
+INVALID_TITLES = {"今日科技科普", "标题建议（5个）"}
+
 
 def tokenize(text: str) -> set[str]:
     text = text.lower()
@@ -77,6 +77,15 @@ def detect_narratives(title: str) -> set[str]:
     return out
 
 
+def normalize_title(title: str) -> str:
+    return re.sub(r"\s+", " ", title).strip()
+
+
+def valid_title(title: str) -> bool:
+    title = normalize_title(title)
+    return bool(title) and title not in INVALID_TITLES and len(title) >= 8
+
+
 def score(title: str) -> float:
     s = 0.0
     for pat, w in AI_KW:
@@ -85,7 +94,6 @@ def score(title: str) -> float:
     for pat, w in PENALTY_KW:
         if re.search(pat, title, re.I):
             s -= w
-    # prefer shorter, punchier
     s -= max(0, (len(title) - 30)) * 0.02
     return s
 
@@ -95,11 +103,7 @@ def recent_title_penalty(title: str, recent_titles: list[str]) -> tuple[float, d
     companies = detect_company_flags(title)
     narratives = detect_narratives(title)
     penalty = 0.0
-    reasons = {
-        "overlap": 0.0,
-        "company": 0.0,
-        "narrative": 0.0,
-    }
+    reasons = {"overlap": 0.0, "company": 0.0, "narrative": 0.0}
     for old in recent_titles:
         old_toks = tokenize(old)
         if toks and old_toks:
@@ -119,7 +123,7 @@ def recent_title_penalty(title: str, recent_titles: list[str]) -> tuple[float, d
     return penalty, reasons
 
 
-def load_recent_titles(auto_dir: Path, limit: int = 8) -> list[str]:
+def load_recent_titles_from_local(auto_dir: Path, limit: int = 8) -> list[str]:
     titles = []
     if not auto_dir.exists():
         return titles
@@ -131,10 +135,8 @@ def load_recent_titles(auto_dir: Path, limit: int = 8) -> list[str]:
         m = re.search(r"^title:\s*(.+)$", text, re.M)
         if not m:
             continue
-        title = m.group(1).strip()
-        if not title or title in {"今日科技科普", "标题建议（5个）"}:
-            continue
-        if len(title) < 8:
+        title = normalize_title(m.group(1))
+        if not valid_title(title):
             continue
         if title not in titles:
             titles.append(title)
@@ -143,17 +145,63 @@ def load_recent_titles(auto_dir: Path, limit: int = 8) -> list[str]:
     return titles
 
 
+def load_recent_titles_from_notion(database_id: str, limit: int = 8) -> list[str]:
+    token = os.environ.get("NOTION_TOKEN")
+    if not token or not database_id:
+        return []
+    payload = {
+        "page_size": limit * 2,
+        "filter": {"property": "节点", "select": {"equals": "MOSS"}},
+        "sorts": [{"timestamp": "created_time", "direction": "descending"}],
+    }
+    req = urllib.request.Request(
+        f"https://api.notion.com/v1/databases/{database_id}/query",
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        method="POST",
+    )
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Notion-Version", "2022-06-28")
+    req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return []
+
+    titles = []
+    for r in data.get("results", []):
+        props = r.get("properties", {})
+        title = ''.join(x.get('plain_text', '') for x in props.get('名称', {}).get('title', []))
+        title = normalize_title(title)
+        if not valid_title(title):
+            continue
+        if title not in titles:
+            titles.append(title)
+        if len(titles) >= limit:
+            break
+    return titles
+
+
+def load_recent_titles(auto_dir: Path, notion_db_id: str | None, limit: int = 8) -> list[str]:
+    titles = []
+    for t in load_recent_titles_from_local(auto_dir, limit=limit):
+        if t not in titles:
+            titles.append(t)
+    for t in load_recent_titles_from_notion(notion_db_id or "", limit=limit):
+        if t not in titles:
+            titles.append(t)
+        if len(titles) >= limit:
+            break
+    return titles[:limit]
+
+
 def score_item(it: dict, recent_titles: list[str]) -> tuple[float, dict]:
     title = it.get("title", "") or ""
     s = score(title)
-
-    # GitHub is auxiliary (AI/LLM trending signal). Apply heavy downweight so it won't dominate media headlines.
     if it.get("kind") == "github":
         s *= 0.35
         stars = int(it.get("stars") or 0)
-        # Small popularity nudge (still downweighted overall)
         s += math.log10(max(1, stars)) * 0.3
-
     novelty_penalty, novelty_detail = recent_title_penalty(title, recent_titles)
     s -= novelty_penalty
     return s, novelty_detail
@@ -165,11 +213,11 @@ def main():
     ap.add_argument("--extra", action="append", default=[], help="extra items json (same schema: {items:[...]})")
     ap.add_argument("--out")
     ap.add_argument("--recent-auto-dir", default="wechat-publisher-out/auto")
+    ap.add_argument("--notion-db-id", default=os.environ.get("NOTION_ARTICLE_DATABASE_ID", "3188bd97-88dd-8034-ae05-d4c7f2b4b10e"))
     args = ap.parse_args()
 
     data = json.loads(Path(args.inp).read_text(encoding="utf-8"))
     items = list(data.get("items") or [])
-
     for extra_path in args.extra:
         try:
             extra = json.loads(Path(extra_path).read_text(encoding="utf-8"))
@@ -177,7 +225,7 @@ def main():
         except Exception:
             pass
 
-    recent_titles = load_recent_titles(Path(args.recent_auto_dir))
+    recent_titles = load_recent_titles(Path(args.recent_auto_dir), args.notion_db_id)
 
     for it in items:
         raw_score, novelty_detail = score_item(it, recent_titles)
