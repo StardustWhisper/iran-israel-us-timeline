@@ -12,6 +12,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 NOTION_VERSION = os.environ.get('NOTION_VERSION', '2022-06-28')
+NOTION_FILE_VERSION = os.environ.get('NOTION_FILE_VERSION', '2026-03-11')
 TOKEN = os.environ.get('NOTION_TOKEN')
 if not TOKEN:
     raise SystemExit('NOTION_TOKEN missing')
@@ -39,6 +40,49 @@ def get_database(db_id: str):
     if code != 200:
         raise SystemExit('Failed to fetch Notion database schema')
     return data
+
+
+def upload_file_to_notion(file_path: Path) -> str | None:
+    if not file_path.exists() or not file_path.is_file():
+        return None
+
+    content_type = 'image/jpeg' if file_path.suffix.lower() in {'.jpg', '.jpeg'} else 'image/png'
+
+    # 1) create file upload object
+    payload = {
+        'mode': 'single_part',
+        'filename': file_path.name,
+        'content_type': content_type,
+    }
+    req = urllib.request.Request('https://api.notion.com/v1/file_uploads', data=json.dumps(payload).encode('utf-8'), method='POST')
+    req.add_header('Authorization', f'Bearer {TOKEN}')
+    req.add_header('Notion-Version', NOTION_FILE_VERSION)
+    req.add_header('Content-Type', 'application/json')
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        created = json.loads(resp.read().decode('utf-8'))
+    upload_id = created.get('id')
+    upload_url = created.get('upload_url')
+    if not upload_id or not upload_url:
+        return None
+
+    # 2) upload binary body as multipart/form-data
+    boundary = '----OpenClawNotionUploadBoundary'
+    body = []
+    body.append(f'--{boundary}\r\n'.encode())
+    body.append(f'Content-Disposition: form-data; name="file"; filename="{file_path.name}"\r\n'.encode())
+    body.append(f'Content-Type: {content_type}\r\n\r\n'.encode())
+    body.append(file_path.read_bytes())
+    body.append(f'\r\n--{boundary}--\r\n'.encode())
+    data = b''.join(body)
+
+    up_req = urllib.request.Request(upload_url, data=data, method='POST')
+    up_req.add_header('Authorization', f'Bearer {TOKEN}')
+    up_req.add_header('Notion-Version', NOTION_FILE_VERSION)
+    up_req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
+    with urllib.request.urlopen(up_req, timeout=60) as _:
+        pass
+
+    return upload_id
 
 
 def split_frontmatter(text: str):
@@ -123,9 +167,11 @@ def main():
     ap.add_argument('--wechat-media-id', default='')
     args = ap.parse_args()
 
-    text = Path(args.md).read_text(encoding='utf-8')
+    md_path = Path(args.md)
+    text = md_path.read_text(encoding='utf-8')
     meta, body = split_frontmatter(text)
-    title = meta.get('title') or args.topic or Path(args.md).stem
+    title = meta.get('title') or args.topic or md_path.stem
+    cover_value = (meta.get('cover') or '').strip()
     db = get_database(args.database_id)
     props = db.get('properties') or {}
     title_prop = None
@@ -162,6 +208,22 @@ def main():
     page_id = created['id']
 
     preface = []
+
+    # Optional local cover upload to Notion and insert as top image block.
+    if cover_value and cover_value.startswith('./'):
+        cover_path = (md_path.parent / cover_value).resolve()
+        upload_id = upload_file_to_notion(cover_path)
+        if upload_id:
+            preface.append({
+                "object": "block",
+                "type": "image",
+                "image": {
+                    "type": "file_upload",
+                    "file_upload": {"id": upload_id},
+                    "caption": rich_text("封面图"),
+                },
+            })
+
     if args.topic:
         preface.append({"object": "block", "type": "callout", "callout": {"rich_text": rich_text(f"自动出稿选题：{args.topic}"), "icon": {"emoji": "📝"}}})
     if args.source_url:
