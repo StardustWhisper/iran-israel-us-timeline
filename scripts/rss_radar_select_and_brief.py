@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Select top topic from RSS items and produce a brief for HUGO.
 
-Scoring is heuristic with novelty penalties:
-- Prefer AI/compute/agent topics for now
-- Prefer explanatory potential and visualizability
-- Penalize topics too similar to recently drafted/published article titles
-- Recent history can come from local drafts and Notion article database
+Scoring dimensions:
+- base topical relevance (AI / compute / agent etc.)
+- novelty penalty from recent local + Notion article history
+- WeChat publishability bonus/penalty for公众号适发度
 """
 
 from __future__ import annotations
@@ -86,7 +85,7 @@ def valid_title(title: str) -> bool:
     return bool(title) and title not in INVALID_TITLES and len(title) >= 8
 
 
-def score(title: str) -> float:
+def base_score(title: str) -> float:
     s = 0.0
     for pat, w in AI_KW:
         if re.search(pat, title, re.I):
@@ -121,6 +120,48 @@ def recent_title_penalty(title: str, recent_titles: list[str]) -> tuple[float, d
             penalty += 1.0
             reasons["narrative"] = max(reasons["narrative"], 1.0)
     return penalty, reasons
+
+
+def publishability_score(title: str, item: dict) -> tuple[float, dict]:
+    s = 0.0
+    reasons = {"bonus": [], "penalty": []}
+    title_l = title.lower()
+    source = (item.get("sourceBlog") or item.get("source") or "").lower()
+
+    # 中文友好 / 国内科技媒体：更适合直接做公众号科普
+    if re.search(r"[\u4e00-\u9fff]", title):
+        s += 0.8
+        reasons["bonus"].append("中文标题友好")
+    if source == "36kr-tech":
+        s += 0.8
+        reasons["bonus"].append("36kr科技媒体适配公众号")
+    if source == "infoq":
+        s += 0.4
+        reasons["bonus"].append("InfoQ 技术解读可展开")
+
+    # 有明显机制/争议/趋势感，适合科普展开
+    if re.search(r"为什么|如何|误区|路线图|终结|接管|提示注入|安全|算力|GTC|模型|工具", title, re.I):
+        s += 0.7
+        reasons["bonus"].append("有机制或趋势可展开")
+
+    # 纯英文、海外快讯、社区碎片，对公众号长文不友好
+    if source == "hackernews":
+        s -= 1.0
+        reasons["penalty"].append("Hacker News 更像线索而非成稿源")
+    if source == "v2ex-latest":
+        s -= 1.2
+        reasons["penalty"].append("V2EX 社区碎片不适合主稿")
+    if re.fullmatch(r"[A-Za-z0-9\-\s:,.!?()'\"]+", title or ""):
+        s -= 0.8
+        reasons["penalty"].append("纯英文标题对中文公众号转化较弱")
+    if len(title.split()) <= 5 and re.fullmatch(r"[A-Za-z0-9\-\s:,.!?()'\"]+", title or ""):
+        s -= 0.5
+        reasons["penalty"].append("过短英文快讯可展开空间有限")
+    if re.search(r"releases|launches|introducing|announces", title_l):
+        s -= 0.4
+        reasons["penalty"].append("偏发布快讯")
+
+    return s, reasons
 
 
 def load_recent_titles_from_local(auto_dir: Path, limit: int = 8) -> list[str]:
@@ -197,14 +238,25 @@ def load_recent_titles(auto_dir: Path, notion_db_id: str | None, limit: int = 8)
 
 def score_item(it: dict, recent_titles: list[str]) -> tuple[float, dict]:
     title = it.get("title", "") or ""
-    s = score(title)
+    s = base_score(title)
+    detail = {"noveltyPenalty": None, "publishability": None}
+
     if it.get("kind") == "github":
         s *= 0.35
         stars = int(it.get("stars") or 0)
         s += math.log10(max(1, stars)) * 0.3
+
     novelty_penalty, novelty_detail = recent_title_penalty(title, recent_titles)
     s -= novelty_penalty
-    return s, novelty_detail
+    if any(v > 0 for v in novelty_detail.values()):
+        detail["noveltyPenalty"] = novelty_detail
+
+    pub_score, pub_detail = publishability_score(title, it)
+    s += pub_score
+    if pub_detail["bonus"] or pub_detail["penalty"]:
+        detail["publishability"] = pub_detail
+
+    return s, detail
 
 
 def main():
@@ -228,10 +280,12 @@ def main():
     recent_titles = load_recent_titles(Path(args.recent_auto_dir), args.notion_db_id)
 
     for it in items:
-        raw_score, novelty_detail = score_item(it, recent_titles)
+        raw_score, detail = score_item(it, recent_titles)
         it["score"] = round(float(raw_score), 3)
-        if any(v > 0 for v in novelty_detail.values()):
-            it["noveltyPenalty"] = novelty_detail
+        if detail.get("noveltyPenalty"):
+            it["noveltyPenalty"] = detail["noveltyPenalty"]
+        if detail.get("publishability"):
+            it["publishability"] = detail["publishability"]
 
     items_sorted = sorted(items, key=lambda x: x.get("score", 0), reverse=True)
     top = items_sorted[0] if items_sorted else None
