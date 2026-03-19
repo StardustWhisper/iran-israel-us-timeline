@@ -51,6 +51,14 @@ NARRATIVE_PATTERNS = {
     "consumer-hardware": r"手机|PC|眼镜|终端|玩家",
 }
 
+PRIMARY_TRACK_PATTERNS = [
+    (r"AI|人工智能|大模型|模型|LLM|Agent|智能体", 0.9, "主赛道：AI/模型/Agent"),
+    (r"推理|算力|GPU|工具|API|工作流|路线图|SOTA", 0.7, "主赛道：推理/工具链/工作流"),
+]
+SECONDARY_TRACK_PENALTIES = [
+    (r"出行|低空|eVTOL|汽车|地产|成交模型", 0.4, "次赛道：偏产业泛题"),
+]
+
 INVALID_TITLES = {"今日科技科普", "标题建议（5个）"}
 
 
@@ -164,6 +172,20 @@ def publishability_score(title: str, item: dict) -> tuple[float, dict]:
     return s, reasons
 
 
+def track_preference_score(title: str) -> tuple[float, dict]:
+    s = 0.0
+    reasons = {"bonus": [], "penalty": []}
+    for pat, w, note in PRIMARY_TRACK_PATTERNS:
+        if re.search(pat, title, re.I):
+            s += w
+            reasons["bonus"].append(note)
+    for pat, w, note in SECONDARY_TRACK_PENALTIES:
+        if re.search(pat, title, re.I):
+            s -= w
+            reasons["penalty"].append(note)
+    return s, reasons
+
+
 def load_recent_titles_from_local(auto_dir: Path, limit: int = 8) -> list[str]:
     titles = []
     if not auto_dir.exists():
@@ -239,7 +261,7 @@ def load_recent_titles(auto_dir: Path, notion_db_id: str | None, limit: int = 8)
 def score_item(it: dict, recent_titles: list[str]) -> tuple[float, dict]:
     title = it.get("title", "") or ""
     s = base_score(title)
-    detail = {"noveltyPenalty": None, "publishability": None}
+    detail = {"noveltyPenalty": None, "publishability": None, "trackPreference": None}
 
     if it.get("kind") == "github":
         s *= 0.35
@@ -255,6 +277,11 @@ def score_item(it: dict, recent_titles: list[str]) -> tuple[float, dict]:
     s += pub_score
     if pub_detail["bonus"] or pub_detail["penalty"]:
         detail["publishability"] = pub_detail
+
+    track_score, track_detail = track_preference_score(title)
+    s += track_score
+    if track_detail["bonus"] or track_detail["penalty"]:
+        detail["trackPreference"] = track_detail
 
     return s, detail
 
@@ -286,6 +313,8 @@ def main():
             it["noveltyPenalty"] = detail["noveltyPenalty"]
         if detail.get("publishability"):
             it["publishability"] = detail["publishability"]
+        if detail.get("trackPreference"):
+            it["trackPreference"] = detail["trackPreference"]
 
     prelim = sorted(items, key=lambda x: x.get("score", 0), reverse=True)
 
