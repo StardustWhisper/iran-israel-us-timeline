@@ -287,7 +287,21 @@ def main():
         if detail.get("publishability"):
             it["publishability"] = detail["publishability"]
 
-    items_sorted = sorted(items, key=lambda x: x.get("score", 0), reverse=True)
+    prelim = sorted(items, key=lambda x: x.get("score", 0), reverse=True)
+
+    # Source diversity pass: avoid one source monopolizing the whole top list.
+    source_seen = {}
+    for it in prelim:
+        source = (it.get('sourceBlog') or it.get('source') or 'unknown')
+        seen = source_seen.get(source, 0)
+        source_penalty = 0.0
+        if seen >= 1:
+            source_penalty = min(0.9, seen * 0.35)
+            it['score'] = round(float(it.get('score', 0)) - source_penalty, 3)
+            it['sourceDiversityPenalty'] = round(source_penalty, 3)
+        source_seen[source] = seen + 1
+
+    items_sorted = sorted(prelim, key=lambda x: x.get("score", 0), reverse=True)
     top = items_sorted[0] if items_sorted else None
 
     brief = {
