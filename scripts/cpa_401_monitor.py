@@ -31,8 +31,9 @@ TS_RE = re.compile(r"^Timestamp:\s*(.+)")
 # JSON error line in section "=== API RESPONSE ===" is often one-liner
 JSON_LINE_RE = re.compile(r"^\{\"error\":\{.*\}\}$")
 
-# Default: alert when usage_limit_reached accumulates to this count in a day
+# Default: keep usage-limit accumulation silent unless explicitly enabled.
 USAGE_LIMIT_ALERT_THRESHOLD = int(os.getenv("CPA_USAGE_LIMIT_ALERT_THRESHOLD", "10"))
+USAGE_LIMIT_ALERT_ENABLED = os.getenv("CPA_USAGE_LIMIT_ALERT_ENABLED", "0") == "1"
 LOCAL_TZ = timezone(timedelta(hours=8))  # Asia/Shanghai
 
 @dataclass
@@ -182,19 +183,19 @@ def main() -> int:
         lines.append(f"CPA-plus 失败请求告警：发现 {len(hits)} 条 401（最近 5 分钟新增日志）")
         for i, h in enumerate(hits[:5], 1):
             ts = h.timestamp or "(no timestamp)"
-            url = h.url or "(no url)"
+            et = h.error_type or "unknown_error"
             msg = (h.message or "(no message)").strip()
-            if len(msg) > 200:
-                msg = msg[:200] + "…"
-            lines.append(f"{i}. {ts} {url} :: {msg}")
+            if len(msg) > 160:
+                msg = msg[:160] + "…"
+            lines.append(f"{i}. {ts} status=401 type={et} :: {msg}")
         if len(hits) > 5:
             lines.append(f"… 还有 {len(hits)-5} 条未展开")
         sys.stdout.write("\n".join(lines) + "\n")
         return 2
 
-    # Priority 2: usage_limit_reached accumulation alert (threshold per day)
+    # Priority 2: usage_limit_reached accumulation alert (disabled by default; enable explicitly when needed)
     today_total = int(usage_limit_counts.get(usage_limit_date, 0))
-    if today_total >= USAGE_LIMIT_ALERT_THRESHOLD and usage_limit_hits:
+    if USAGE_LIMIT_ALERT_ENABLED and today_total >= USAGE_LIMIT_ALERT_THRESHOLD and usage_limit_hits:
         sys.stdout.write(
             "\n".join([
                 f"CPA-plus 用量告警：检测到 usage_limit_reached（今日累计 {today_total} 次，阈值 {USAGE_LIMIT_ALERT_THRESHOLD}）",
