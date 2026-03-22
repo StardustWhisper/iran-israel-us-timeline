@@ -114,7 +114,69 @@ curl -sS http://127.0.0.1:8090/actuator/health
 
 ---
 
-## 4) 极端回滚到 H2（最后手段，不推荐）
+## 4) 从 R2 拉回备份并恢复（PG dump / workdir）
+
+> 说明：
+> - 本机（Aliyun）通常是“产备一体”，优先用 `/root/halo-backups/` 的本地备份恢复。
+> - 如果本地盘坏了/误删了，则从 R2 拉回。
+> - R2 remote 以当前实际使用为准：`r2halo:openclaw/backups/halo/aliyun`。
+
+### 4.1 列出 R2 上的备份
+
+```bash
+# 列出目录（查看有哪些 dump / workdir）
+rclone lsf r2halo:openclaw/backups/halo/aliyun --s3-no-check-bucket | tail -n 50
+```
+
+### 4.2 拉回一个 PG dump 并恢复
+
+```bash
+set -euo pipefail
+PASS=$(tr -d '\n' < /root/.halo2/.pg-halo-password)
+NAME=halo2-pg-YYYYMMDD_HHMMSS.dump
+
+# 1) 下载到本地备份目录
+rclone copy \
+  "r2halo:openclaw/backups/halo/aliyun/${NAME}" \
+  /root/halo-backups \
+  --s3-no-check-bucket
+
+# 2) 按 PG dump 恢复流程执行
+DUMP="/root/halo-backups/${NAME}"
+docker stop halo
+sudo -u postgres psql -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS halo;"
+sudo -u postgres psql -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE halo OWNER halo;"
+PGPASSWORD="$PASS" pg_restore -h 127.0.0.1 -U halo -d halo --clean --if-exists "$DUMP"
+docker start halo
+sleep 20
+curl -sS http://127.0.0.1:8090/actuator/health
+```
+
+### 4.3 拉回一个 workdir 备份并恢复（兜底）
+
+```bash
+set -euo pipefail
+NAME=halo2-workdir-YYYYMMDD_HHMMSS.tar.gz
+
+rclone copy \
+  "r2halo:openclaw/backups/halo/aliyun/${NAME}" \
+  /root/halo-backups \
+  --s3-no-check-bucket
+
+TAR="/root/halo-backups/${NAME}"
+docker stop halo
+cp -a /root/.halo2 "/root/.halo2.bak.$(date +%Y%m%d_%H%M%S)"
+# 根据打包结构调整解包路径
+# tar -xzf "$TAR" -C /root/.halo2
+
+docker start halo
+sleep 20
+curl -sS http://127.0.0.1:8090/actuator/health
+```
+
+---
+
+## 5) 极端回滚到 H2（最后手段，不推荐）
 适用：PG 完全不可用且短期无法修复，同时必须立即恢复网站。
 
 思路：把 H2 文件改回原名，并把 `application.yaml` 的 PG 配置移走/改回 H2。
