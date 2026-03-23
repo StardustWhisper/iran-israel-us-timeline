@@ -22,15 +22,32 @@ mkdir -p "$STATE_DIR" "$RSS_DIR" "$TMP_DIR" "$REPORT_DIR"
 # Define feeds (simple high-signal geo/econ/energy/defense)
 # You can add more by editing the list below.
 FEEDS=(
-  "reuters-world|https://www.reuters.com/world/|https://feeds.reuters.com/Reuters/worldNews"
-  "reuters-business|https://www.reuters.com/business/|https://feeds.reuters.com/reuters/businessNews"
-  "reuters-legal|https://www.reuters.com/legal/|https://feeds.reuters.com/reuters/legalNews"
-  "reuters-commodities|https://www.reuters.com/markets/commodities/|https://feeds.reuters.com/reuters/commoditiesNews"
-  "reuters-energy|https://www.reuters.com/business/energy/|https://feeds.reuters.com/reuters/energyNews"
-  "reuters-aerospace|https://www.reuters.com/business/aerospace-defense/|https://feeds.reuters.com/reuters/aerospaceDefenseNews"
-  "imf-news|https://www.imf.org/en/News|https://www.imf.org/en/News/rss"
-  "worldbank-press|https://www.worldbank.org/en/news|https://www.worldbank.org/en/news/all?format=rss"
-  "bloomberg-economics|https://www.bloomberg.com/economics|https://www.bloomberg.com/feeds/podcasts/economics.xml"
+  # Reuters feeds currently NXDOMAIN in this environment; keep disabled for now.
+  # "reuters-world|https://www.reuters.com/world/|https://feeds.reuters.com/reuters/worldNews"
+  # "reuters-business|https://www.reuters.com/business/|https://feeds.reuters.com/reuters/businessNews"
+
+  # RSSHub is protected by CF challenge (403) from this host at the moment; disable until we host our own RSSHub.
+  # "rsshub-reuters-world|https://rsshub.app/reuters/world|https://rsshub.app/reuters/world"
+
+  # Bloomberg often blocks/500s; disable.
+  # "bloomberg-economics|https://www.bloomberg.com/economics|https://www.bloomberg.com/feeds/podcasts/economics.xml"
+
+  # Stable, free, high-signal sources (validated with curl):
+  "bbc-world|https://www.bbc.co.uk/news/world|https://feeds.bbci.co.uk/news/world/rss.xml"
+  # AP RSS endpoints appear blocked/changed (returns HTML/404); keep disabled for now.
+  # "ap-top|https://apnews.com/|https://apnews.com/apf-topnews?output=rss"
+  "aljazeera-all|https://www.aljazeera.com/|https://www.aljazeera.com/xml/rss/all.xml"
+  "dw-world|https://www.dw.com/en/top-stories/s-9097|https://rss.dw.com/rdf/rss-en-world"
+  "un-news|https://news.un.org/|https://news.un.org/feed/subscribe/en/news/all/rss.xml"
+
+  # Economics & markets (usually accessible):
+  "ft-world|https://www.ft.com/world|https://www.ft.com/world?format=rss"
+  "cnbc-world|https://www.cnbc.com/world/|https://www.cnbc.com/id/100727362/device/rss/rss.html"
+
+  # Official/IO sources may block by region (IMF returned 403 here); keep disabled until reachable.
+  # "imf-news|https://www.imf.org/|https://www.imf.org/external/rss/IMFNews.rss"
+  # WorldBank RSS URL above returned 404 from this host; keep disabled until we find a reachable endpoint.
+  # "worldbank-news|https://www.worldbank.org/en/news|https://www.worldbank.org/en/news/rss"
 )
 
 # Ensure feeds are registered in blogwatcher

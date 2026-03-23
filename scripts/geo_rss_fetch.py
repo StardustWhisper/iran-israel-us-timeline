@@ -18,6 +18,7 @@ PUB_RE = re.compile(r"^\s*Published:\s*(\d{4}-\d{2}-\d{2}).*$")
 
 
 def run(*cmd: str) -> str:
+    # blogwatcher may output ANSI colors; keep raw text but in text mode
     return subprocess.check_output(list(cmd), text=True, stderr=subprocess.STDOUT)
 
 
