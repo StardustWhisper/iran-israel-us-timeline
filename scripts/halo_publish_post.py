@@ -229,6 +229,7 @@ def main() -> int:
     ap.add_argument("--source-url", default="", help="Original source url for reference (optional)")
     ap.add_argument("--category", default="", help="Category displayName (find or create), e.g. 公众号")
     ap.add_argument("--tag", action="append", default=[], help="Tag slug(s) to ensure and attach, e.g. --tag tech")
+    ap.add_argument("--publish", action="store_true", help="Attempt to publish (may be forbidden for PATs)")
     ap.add_argument("--strict", action="store_true", help="Exit non-zero on failure")
     args = ap.parse_args()
 
@@ -290,9 +291,11 @@ def main() -> int:
     ]
     post2 = json_patch(session, base, f"/posts/{post_name}", ops)
 
-    # 3) attempt publish
-    now = dt.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
-    published = publish_post(session, base, post_name, publish_time=now)
+    # 3) attempt publish (optional). With PATs this is often forbidden; keep post in DRAFT.
+    published: Dict[str, Any] = {}
+    if args.publish:
+        now = dt.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+        published = publish_post(session, base, post_name, publish_time=now)
 
     # output summary JSON
     out = {
