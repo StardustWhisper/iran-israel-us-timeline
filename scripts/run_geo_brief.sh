@@ -90,7 +90,7 @@ cp "rss/geo/brief.json" "$REPORT_DIR/${DATE}.json"
 cp "rss/geo/all-new.json" "$STATE_DIR/last_all.json"
 cp "rss/geo/brief.json" "$STATE_DIR/last_brief.json"
 
-# mark read
-blogwatcher read-all >/dev/null || true
+# mark read (avoid interactive prompt)
+blogwatcher read-all -y >/dev/null || true
 
 echo "GEO_BRIEF_OK date=$DATE out=$REPORT_DIR/${DATE}.md"
