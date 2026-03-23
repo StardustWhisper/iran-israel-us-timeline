@@ -82,9 +82,100 @@ PY
 # Rank and brief
 python3 scripts/geo_rank.py --in rss/geo/all-new.json --out "rss/geo/brief.json" --top 12
 
-# Output report
-python3 scripts/geo_report.py --in rss/geo/brief.json --out "$REPORT_DIR/${DATE}.md" --date "$DATE"
-cp "rss/geo/brief.json" "$REPORT_DIR/${DATE}.json"
+# Output report (prefer HUGO fast brief; fallback to legacy report)
+REPORT_JSON="$REPORT_DIR/${DATE}.json"
+REPORT_MD="$REPORT_DIR/${DATE}.md"
+cp "rss/geo/brief.json" "$REPORT_JSON"
+
+HUGO_RAW="$TMP_DIR/hugo_geo_brief.json"
+HUGO_STATUS="generated"
+HUGO_PROMPT=$(python3 - <<'PY'
+import json
+from pathlib import Path
+p = Path('rss/geo/brief.json')
+try:
+    data = json.loads(p.read_text(encoding='utf-8'))
+except Exception:
+    data = {}
+
+items = data.get('topN') or []
+# Keep a compact payload to avoid token bloat
+payload = {
+    'generatedAt': data.get('generatedAt'),
+    'top': data.get('top') or {},
+    'items': items,
+}
+
+print('你是 HUGO。禁止联网搜索。请基于【给定 JSON 数据】生成“地缘快报版”Markdown。')
+print('硬性结构：')
+print('1) 今日一句话')
+print('2) 今日要点（<=5 条）')
+print('3) 地缘事件清单（按主题分组）')
+print('4) 传导链路（事件→渠道→变量）')
+print('5) 风险雷达（未来24-72h可能触发条件，不预测）')
+print('6) 日历（仅确定事项，可空）')
+print('7) Sources')
+print('硬性要求：')
+print('- 每条要点/事件/链路/风险均需引用来源 URL（用括号或脚注形式，必须是原文链接）')
+print('- Sources 列表需包含所有引用过的来源（标题 + URL）')
+print('- 不要写概率，不给交易建议，不编造具体数字')
+print('- 不确定的信息标注“待核实”')
+print('- 只使用提供的来源，不要扩展或想象')
+print('')
+print('【数据 JSON】')
+print(json.dumps(payload, ensure_ascii=False, indent=2))
+PY
+)
+
+if ! bash scripts/openclaw_cli.sh agent --agent hugo --timeout 600 --json --message "$HUGO_PROMPT" > "$HUGO_RAW"; then
+  HUGO_STATUS="failed"
+else
+  export HUGO_RAW REPORT_MD
+  if ! python3 - <<'PY'
+import json, pathlib, os, re
+raw_path = pathlib.Path(os.environ['HUGO_RAW'])
+report_md = pathlib.Path(os.environ['REPORT_MD'])
+content = raw_path.read_text(encoding='utf-8')
+start = content.find('{')
+if start == -1:
+    raise SystemExit('No JSON object found in ' + str(raw_path))
+obj = json.loads(content[start:])
+
+text = ''
+if isinstance(obj, dict) and 'result' in obj and isinstance(obj.get('result'), dict):
+    payloads = obj['result'].get('payloads') or []
+    if payloads and isinstance(payloads, list):
+        text = (payloads[0].get('text') or '').strip()
+elif isinstance(obj, dict) and 'payloads' in obj:
+    payloads = obj.get('payloads') or []
+    if payloads and isinstance(payloads, list):
+        text = (payloads[0].get('text') or '').strip()
+
+if not text:
+    raise KeyError(f"No text payload found. top_keys={list(obj.keys())}")
+
+# Strip common prefatory phrases if any
+patterns = [
+    r'^以下是.*?\n+',
+    r'^下面是.*?\n+',
+    r'^当然可以.*?\n+',
+]
+for pat in patterns:
+    text = re.sub(pat, '', text, flags=re.S)
+
+report_md.write_text(text.strip() + '\n', encoding='utf-8')
+print('WROTE', str(report_md))
+PY
+  then
+    HUGO_STATUS="generated"
+  else
+    HUGO_STATUS="failed"
+  fi
+fi
+
+if [[ "$HUGO_STATUS" != "generated" ]]; then
+  python3 scripts/geo_report.py --in rss/geo/brief.json --out "$REPORT_MD" --date "$DATE"
+fi
 
 # state files
 cp "rss/geo/all-new.json" "$STATE_DIR/last_all.json"
