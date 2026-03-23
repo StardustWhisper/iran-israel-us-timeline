@@ -178,11 +178,29 @@ import json, pathlib, os, re
 article_json = pathlib.Path(os.environ['ARTICLE_JSON'])
 article_md_raw = pathlib.Path(os.environ['ARTICLE_MD_RAW'])
 content = article_json.read_text(encoding='utf-8')
+
+# openclaw agent output may include logs before the JSON payload
 start = content.find('{')
 if start == -1:
     raise SystemExit('No JSON object found in ' + str(article_json))
 obj = json.loads(content[start:])
-text = obj['result']['payloads'][0].get('text', '').strip()
+
+# Schema compatibility:
+# - Older: {"result": {"payloads": [{"text": "..."}]}}
+# - Current: {"payloads": [{"text": "..."}], "meta": {...}}
+text = ''
+if isinstance(obj, dict) and 'result' in obj and isinstance(obj.get('result'), dict):
+    payloads = obj['result'].get('payloads') or []
+    if payloads and isinstance(payloads, list):
+        text = (payloads[0].get('text') or '').strip()
+elif isinstance(obj, dict) and 'payloads' in obj:
+    payloads = obj.get('payloads') or []
+    if payloads and isinstance(payloads, list):
+        text = (payloads[0].get('text') or '').strip()
+
+if not text:
+    raise KeyError(f"No text payload found. top_keys={list(obj.keys())}")
+
 patterns = [
     r'^以下是.*?\n+',
     r'^下面是.*?\n+',
@@ -192,6 +210,7 @@ patterns = [
 ]
 for pat in patterns:
     text = re.sub(pat, '', text, flags=re.S)
+
 article_md_raw.write_text(text.strip() + '\n', encoding='utf-8')
 print('WROTE', str(article_md_raw))
 PY
@@ -288,5 +307,24 @@ if ! python3 "$HOME/.openclaw/workspace/scripts/markdown_to_notion_page.py" \
   echo "WARN: Notion sync failed; see $NOTION_SYNC_LOG" >&2
 fi
 
+# 6) Publish to Halo (direct) — best effort; do NOT block earlier deliveries.
+STAGE="halo_publish"
+HALO_SYNC_STATUS="skipped"
+HALO_PUBLISH_LOG="$OUT_DIR/halo_publish.json"
+export HALO_PUBLISH_LOG
+
+# Prefer raw md (no wechat frontmatter)
+if [[ -n "${HALO_BASE_URL:-}" ]] && [[ -n "${HALO_TOKEN:-}" ]]; then
+  HALO_SYNC_STATUS="ok"
+  if ! python3 "$HOME/.openclaw/workspace/scripts/halo_publish_post.py" \
+    --md "$ARTICLE_MD_RAW" \
+    --category "公众号" \
+    --tag tech \
+    > "$HALO_PUBLISH_LOG"; then
+    HALO_SYNC_STATUS="failed"
+    echo "WARN: Halo publish failed; see $HALO_PUBLISH_LOG" >&2
+  fi
+fi
+
 STAGE="done"
-echo "MORNING_OK title=$TITLE url=$URL out=$OUT_DIR media_id=$WECHAT_MEDIA_ID web_research_status=$WEB_RESEARCH_STATUS article_status=$ARTICLE_STATUS cover_status=$COVER_STATUS notion_status=$NOTION_SYNC_STATUS"
+echo "MORNING_OK title=$TITLE url=$URL out=$OUT_DIR media_id=$WECHAT_MEDIA_ID web_research_status=$WEB_RESEARCH_STATUS article_status=$ARTICLE_STATUS cover_status=$COVER_STATUS notion_status=$NOTION_SYNC_STATUS halo_status=$HALO_SYNC_STATUS"
