@@ -89,6 +89,100 @@ python3 scripts/github_ai_trending.py --days 7 --min-stars 200 --limit 20 --out 
 # Score + select top
 python3 scripts/rss_radar_select_and_brief.py --in rss/all-new.json --extra rss/github-ai.json --out rss/brief.json
 
+# (A2A) Ask HUGO to generate a lightweight "topic pack" for top candidates.
+# - Purpose: help the morning pipeline draft faster with better angle/outline.
+# - Constraint: do NOT browse the web here; do NOT invent specific numbers/facts.
+HUGO_PACK_STATUS="skipped"
+HUGO_PACK_RAW="rss/_tmp/nightly_hugo_pack_raw.json"
+HUGO_PACK_OUT="rss/nightly_pack.json"
+mkdir -p rss/_tmp
+
+TOP3_LIST=$(python3 - <<'PY'
+import json
+p='rss/brief.json'
+d=json.load(open(p,'r',encoding='utf-8'))
+items=(d.get('top10') or [])[:3]
+lines=[]
+for i,it in enumerate(items,1):
+    title=(it.get('title') or '').strip()
+    url=(it.get('url') or '').strip()
+    score=it.get('score')
+    lines.append(f"{i}) {title}\n   - url: {url}\n   - score: {score}")
+print("\n".join(lines))
+PY
+)
+
+if bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 --json --message "你是 HUGO，现在只做‘选题包’整理，不写长文、不联网搜索。
+
+我会给你 3 个候选选题（标题+链接）。请你输出一个【严格 JSON 对象】（不要 markdown，不要前后解释），用于给 morning 流水线直接消费。
+
+候选选题：
+${TOP3_LIST}
+
+硬性要求：
+- 只能基于标题与常识推理，不能声称你‘查到’了什么
+- 不要编造具体数字/版本号/公司内部细节；不确定就写 null 或用保守措辞
+- JSON 结构必须是：
+{
+  \"generatedAt\": \"ISO8601\",
+  \"items\": [
+    {
+      \"rank\": 1,
+      \"title\": \"...\",
+      \"url\": \"...\",
+      \"thesis\": \"一句话结论（可发布的观点，不含虚构事实）\",
+      \"whyReadersCare\": [\"点1\",\"点2\"],
+      \"whatHappened\": [\"点1\",\"点2\"],
+      \"mechanism\": [\"机制点1\",\"机制点2\",\"机制点3\"],
+      \"misconceptions\": [\"误区1\",\"误区2\"],
+      \"outline\": [\"段落1\",\"段落2\",\"段落3\",\"段落4\"],
+      \"keywords\": [\"关键词1\",\"关键词2\"],
+      \"wechatAngle\": \"更偏科普/更偏产业/更偏安全/更偏工具链 等\",
+      \"coverPrompt\": \"给 DALI 的封面提示词：必须无文字/无logo/干净留白\",
+      \"figurePrompts\": [\"配图1提示词\",\"配图2提示词\"]
+    }
+  ]
+}
+" > "$HUGO_PACK_RAW"; then
+  # Normalize: extract first JSON object from payload and write to rss/nightly_pack.json
+  if python3 - <<'PY'
+import json, pathlib, re
+raw_path = pathlib.Path('rss/_tmp/nightly_hugo_pack_raw.json')
+out_path = pathlib.Path('rss/nightly_pack.json')
+text = raw_path.read_text(encoding='utf-8')
+start = text.find('{')
+if start == -1:
+    raise SystemExit('no JSON object found in HUGO output')
+obj = json.loads(text[start:])
+# openclaw agent wrapper
+payload_text = ''
+if isinstance(obj, dict) and 'result' in obj and isinstance(obj.get('result'), dict):
+    payloads = obj['result'].get('payloads') or []
+    if payloads:
+        payload_text = (payloads[0].get('text') or '').strip()
+elif isinstance(obj, dict) and 'payloads' in obj:
+    payloads = obj.get('payloads') or []
+    if payloads:
+        payload_text = (payloads[0].get('text') or '').strip()
+if not payload_text:
+    raise SystemExit('no payload text')
+# payload_text should itself be JSON
+start2 = payload_text.find('{')
+if start2 == -1:
+    raise SystemExit('payload has no JSON')
+pack = json.loads(payload_text[start2:])
+out_path.write_text(json.dumps(pack, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+print('WROTE', str(out_path))
+PY
+  then
+    HUGO_PACK_STATUS="ok"
+  else
+    HUGO_PACK_STATUS="failed"
+  fi
+else
+  HUGO_PACK_STATUS="failed"
+fi
+
 # Mark all as read so next run focuses on new items only
 blogwatcher read-all >/dev/null || true
 
@@ -97,10 +191,12 @@ import json
 p='rss/brief.json'
 d=json.load(open(p,'r',encoding='utf-8'))
 print('RSS nightly OK')
-print('Version: rss_nightly v2026-03-17')
+print('Version: rss_nightly v2026-03-23-a2a-pack')
 print('Top:', d['top']['title'])
 print('URL:', d['top']['url'])
 print('Top3:')
 for i,it in enumerate(d['top10'][:3],1):
     print(f"{i}. {it['score']} {it['title']}")
 PY
+
+echo "HUGO pack: ${HUGO_PACK_STATUS}"
