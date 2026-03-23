@@ -308,13 +308,15 @@ if ! python3 "$HOME/.openclaw/workspace/scripts/markdown_to_notion_page.py" \
 fi
 
 # 6) Publish to Halo (direct) — best effort; do NOT block earlier deliveries.
+# Default: DISABLED to avoid creating "bad drafts" (Halo console 500: snapshot is not a base snapshot).
+# Enable explicitly by setting: HALO_ENABLE=1
 STAGE="halo_publish"
 HALO_SYNC_STATUS="skipped"
 HALO_PUBLISH_LOG="$OUT_DIR/halo_publish.json"
 export HALO_PUBLISH_LOG
 
 # Prefer raw md (no wechat frontmatter)
-if [[ -n "${HALO_BASE_URL:-}" ]] && [[ -n "${HALO_TOKEN:-}" ]]; then
+if [[ "${HALO_ENABLE:-0}" == "1" ]] && [[ -n "${HALO_BASE_URL:-}" ]] && [[ -n "${HALO_TOKEN:-}" ]]; then
   HALO_SYNC_STATUS="ok"
   if ! python3 "$HOME/.openclaw/workspace/scripts/halo_publish_post.py" \
     --md "$ARTICLE_MD_RAW" \
