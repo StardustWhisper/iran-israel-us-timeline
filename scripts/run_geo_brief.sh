@@ -144,7 +144,7 @@ print(json.dumps(payload, ensure_ascii=False, indent=2))
 PY
 )
 
-if ! bash scripts/openclaw_cli.sh agent --agent hugo --timeout 600 --json --message "$HUGO_PROMPT" > "$HUGO_RAW"; then
+if ! bash scripts/openclaw_cli.sh agent --agent hugo --timeout 600 --json --message "$HUGO_PROMPT" > "$HUGO_RAW" 2>/dev/null; then
   HUGO_STATUS="failed"
 else
   export HUGO_RAW REPORT_MD
