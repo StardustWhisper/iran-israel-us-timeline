@@ -62,7 +62,7 @@ for entry in "${FEEDS[@]}"; do
   # scan each blog to minimize full scan time
   blogwatcher scan "$name" >/dev/null || true
 
-  # fetch new items
+  # fetch NEW items first
   python3 scripts/geo_rss_fetch.py --blog "$name" --out "$TMP_DIR/${name}.json" --only-new --limit 80 || true
   # annotate source
   python3 - <<PY
@@ -75,6 +75,7 @@ except Exception:
 for it in d.get('items',[]):
     it['kind']='rss'
     it['sourceBlog']=d.get('blog') or "$name"
+    it['fresh']=True
 open(p,'w',encoding='utf-8').write(json.dumps(d,ensure_ascii=False,indent=2)+'\n')
 PY
 
@@ -95,6 +96,54 @@ out={'generatedAt': datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
 open('rss/geo/all-new.json','w',encoding='utf-8').write(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
 print('merged', len(items), 'items')
 PY
+
+# If no NEW items, fallback to pulling latest items (including already-read)
+MERGED_COUNT=$(python3 - <<'PY'
+import json
+p='rss/geo/all-new.json'
+d=json.load(open(p,'r',encoding='utf-8'))
+print(len(d.get('items') or []))
+PY
+)
+
+if [[ "$MERGED_COUNT" == "0" ]]; then
+  echo "WARN: no NEW items; fallback to latest items from each feed" >&2
+  for entry in "${FEEDS[@]}"; do
+    name=$(printf '%s' "$entry" | cut -d'|' -f1)
+    # overwrite per-feed json with latest items (may include read)
+    python3 scripts/geo_rss_fetch.py --blog "$name" --out "$TMP_DIR/${name}.json" --limit 30 || true
+    python3 - <<PY
+import json
+p="$TMP_DIR/${name}.json"
+try:
+    d=json.load(open(p,'r',encoding='utf-8'))
+except Exception:
+    d={"items":[]}
+for it in d.get('items',[]):
+    it['kind']='rss'
+    it['sourceBlog']=d.get('blog') or "$name"
+    it['fresh']=(it.get('status')=='new')
+    it['fallbackMode']='latest'
+open(p,'w',encoding='utf-8').write(json.dumps(d,ensure_ascii=False,indent=2)+'\n')
+PY
+  done
+
+  # re-merge
+  python3 - <<'PY'
+import json, glob
+from datetime import datetime, timezone
+items=[]
+for fp in glob.glob('rss/geo/_tmp/*.json'):
+    try:
+        d=json.load(open(fp,'r',encoding='utf-8'))
+        items.extend(d.get('items') or [])
+    except Exception:
+        pass
+out={'generatedAt': datetime.now(timezone.utc).isoformat().replace('+00:00','Z'), 'items': items, 'fallbackUsed': True}
+open('rss/geo/all-new.json','w',encoding='utf-8').write(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
+print('merged', len(items), 'items (fallback)')
+PY
+fi
 
 # Rank and brief
 python3 scripts/geo_rank.py --in rss/geo/all-new.json --out "rss/geo/brief.json" --top 12
