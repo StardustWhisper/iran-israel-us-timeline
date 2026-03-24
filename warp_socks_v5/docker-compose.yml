@@ -1,0 +1,10 @@
+services:
+  warp_socks_v5:
+    image: ghcr.io/mon-ius/docker-warp-socks:v5
+    container_name: warp_socks_v5
+    restart: always
+    ports:
+      - "9091:9091"
+    volumes:
+      # Persist sing-box config (contains WARP wireguard keys). Keep this directory local and protected.
+      - ./etc-sing-box:/etc/sing-box
