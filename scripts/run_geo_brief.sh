@@ -44,6 +44,19 @@ FEEDS=(
   "ft-world|https://www.ft.com/world|https://www.ft.com/world?format=rss"
   "cnbc-world|https://www.cnbc.com/world/|https://www.cnbc.com/id/100727362/device/rss/rss.html"
 
+  # Multi-language additions (validated with curl):
+  # French:
+  "lemonde-international|https://www.lemonde.fr/international/|https://www.lemonde.fr/international/rss_full.xml"
+  "france24-fr|https://www.france24.com/fr/|https://www.france24.com/fr/rss"
+  # German:
+  "tagesschau|https://www.tagesschau.de/|https://www.tagesschau.de/xml/rss2"
+  "zdf-nachrichten|https://www.zdf.de/nachrichten|https://www.zdf.de/rss/zdf/nachrichten"
+  "spiegel-intl|https://www.spiegel.de/international/|https://www.spiegel.de/international/index.rss"
+  # Japanese:
+  "nhk-top|https://www3.nhk.or.jp/news/|https://www.nhk.or.jp/rss/news/cat0.xml"
+  "nhk-world|https://www3.nhk.or.jp/news/|https://www3.nhk.or.jp/rss/news/cat3.xml"
+  "asahi-headlines|https://www.asahi.com/|https://www.asahi.com/rss/asahi/newsheadlines.rdf"
+
   # Official/IO sources may block by region (IMF returned 403 here); keep disabled until reachable.
   # "imf-news|https://www.imf.org/|https://www.imf.org/external/rss/IMFNews.rss"
   # WorldBank RSS URL above returned 404 from this host; keep disabled until we find a reachable endpoint.
