@@ -322,12 +322,18 @@ def main() -> int:
         continue
 
     # --- output ---
-    from datetime import datetime, timezone
+    from datetime import datetime
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo("Asia/Shanghai")
+    except Exception:
+        tz = None
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(tz)
     summary = {
-        # Timestamps for downstream automation
-        "ts": now.isoformat().replace("+00:00", "Z"),
+        # Timestamps for downstream automation (default UTC+8)
+        "tz": "Asia/Shanghai",
+        "ts": now.isoformat(),
         "date": now.date().isoformat(),
 
         "scanned": len(files),
