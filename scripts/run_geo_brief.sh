@@ -214,15 +214,16 @@ print(json.dumps(payload, ensure_ascii=False, indent=2))
 PY
 )
 
-if ! bash scripts/openclaw_cli.sh agent --agent hugo --timeout 600 --json --message "$HUGO_PROMPT" > "$HUGO_RAW" 2>/dev/null; then
-  HUGO_STATUS="failed"
-else
-  export HUGO_RAW REPORT_MD
-  if ! python3 - <<'PY'
+# Run HUGO to render the final Markdown. Some environments return non-zero even when JSON is produced,
+# so we always attempt to parse the output file and decide success by parse+write.
+bash scripts/openclaw_cli.sh agent --agent hugo --timeout 600 --json --message "$HUGO_PROMPT" > "$HUGO_RAW" 2>/dev/null || true
+
+export HUGO_RAW REPORT_MD
+if python3 - <<'PY'
 import json, pathlib, os, re
 raw_path = pathlib.Path(os.environ['HUGO_RAW'])
 report_md = pathlib.Path(os.environ['REPORT_MD'])
-content = raw_path.read_text(encoding='utf-8')
+content = raw_path.read_text(encoding='utf-8') if raw_path.exists() else ''
 start = content.find('{')
 if start == -1:
     raise SystemExit('No JSON object found in ' + str(raw_path))
@@ -253,11 +254,10 @@ for pat in patterns:
 report_md.write_text(text.strip() + '\n', encoding='utf-8')
 print('WROTE', str(report_md))
 PY
-  then
-    HUGO_STATUS="generated"
-  else
-    HUGO_STATUS="failed"
-  fi
+then
+  HUGO_STATUS="generated"
+else
+  HUGO_STATUS="failed"
 fi
 
 if [[ "$HUGO_STATUS" != "generated" ]]; then
