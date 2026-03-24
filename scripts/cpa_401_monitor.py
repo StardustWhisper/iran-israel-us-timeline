@@ -322,7 +322,14 @@ def main() -> int:
         continue
 
     # --- output ---
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
     summary = {
+        # Timestamps for downstream automation
+        "ts": now.isoformat().replace("+00:00", "Z"),
+        "date": now.date().isoformat(),
+
         "scanned": len(files),
         "ok_count": ok_count,
         "zero_remaining_count": zero_remaining_count,
