@@ -25,11 +25,18 @@ LOG_DIR = Path("/home/ubuntu/github/deploy-cli-proxy/logs")
 STATE_PATH = Path("/home/ubuntu/.openclaw/workspace/memory/cpa_401_monitor_state.json")
 GLOB = "error-*.log"
 
-STATUS_RE = re.compile(r"^Status:\s*(\d+)")
-URL_RE = re.compile(r"^URL:\s*(\S+)")
-TS_RE = re.compile(r"^Timestamp:\s*(.+)")
+STATUS_RE = re.compile(r"^\s*Status:\s*(\d+)")
+URL_RE = re.compile(r"^\s*URL:\s*(\S+)")
+TS_RE = re.compile(r"^\s*Timestamp:\s*(.+)")
 # JSON error line in section "=== API RESPONSE ===" is often one-liner
 JSON_LINE_RE = re.compile(r"^\{\"error\":\{.*\}\}$")
+
+# Extra patterns for variant log formats
+STATUS_ANY_RE = re.compile(r"\b(status|status_code|http_status)\b\s*[:=]\s*(\d{3})\b", re.I)
+HTTP_LINE_RE = re.compile(r"\bHTTP/\d(?:\.\d)?\b\s+(\d{3})\b")
+
+# Default behavior: if a 401 log may contain leaked tokens, delete the log file.
+CPA_401_AUTO_DELETE = os.getenv("CPA_401_AUTO_DELETE", "1") == "1"
 
 # Default: keep usage-limit accumulation silent unless explicitly enabled.
 USAGE_LIMIT_ALERT_THRESHOLD = int(os.getenv("CPA_USAGE_LIMIT_ALERT_THRESHOLD", "10"))
@@ -69,14 +76,14 @@ def parse_log(path: Path) -> Hit:
     error_type = None
     message = None
 
-    # Read only first ~500 lines + last ~200 lines to avoid huge bodies
+    # Read only first ~500 lines + last ~400 lines to avoid huge bodies
     try:
         lines = path.read_text(errors="replace").splitlines()
     except Exception:
         return Hit(file=path.name, timestamp=None, url=None, status=None, error_type=None, message=None)
 
     head = lines[:500]
-    tail = lines[-200:] if len(lines) > 200 else []
+    tail = lines[-400:] if len(lines) > 400 else lines
 
     for line in head:
         if timestamp is None:
@@ -90,6 +97,7 @@ def parse_log(path: Path) -> Hit:
                 url = m.group(1).strip()
                 continue
 
+    # Try to detect status from multiple formats (tail is most likely to contain response)
     for line in tail:
         if status is None:
             m = STATUS_RE.match(line)
@@ -99,6 +107,22 @@ def parse_log(path: Path) -> Hit:
                 except Exception:
                     status = None
                 continue
+            m2 = STATUS_ANY_RE.search(line)
+            if m2:
+                try:
+                    status = int(m2.group(2))
+                except Exception:
+                    status = None
+                continue
+            m3 = HTTP_LINE_RE.search(line)
+            if m3:
+                try:
+                    status = int(m3.group(1))
+                except Exception:
+                    status = None
+                continue
+
+        # Extract error json if present
         if JSON_LINE_RE.match(line.strip()):
             try:
                 obj = json.loads(line.strip())
@@ -108,6 +132,12 @@ def parse_log(path: Path) -> Hit:
                     message = obj.get("error", {}).get("message")
             except Exception:
                 pass
+
+        # Fallback: sometimes the file contains an inline "401" mention rather than Status:
+        if status is None and "401" in line:
+            m4 = re.search(r"\b401\b", line)
+            if m4:
+                status = 401
 
     return Hit(file=path.name, timestamp=timestamp, url=url, status=status, error_type=error_type, message=message)
 
@@ -127,7 +157,8 @@ def main() -> int:
             st = p.stat()
         except FileNotFoundError:
             continue
-        if st.st_mtime > last_mtime:
+        # Use >= to avoid missing events when mtimes are equal (coarse FS timestamp)
+        if st.st_mtime >= last_mtime:
             candidates.append((st.st_mtime, p))
 
     if not candidates:
@@ -145,6 +176,8 @@ def main() -> int:
     usage_limit_counts = dict(state.get("usage_limit_counts", {}))
     usage_limit_counts.setdefault(usage_limit_date, 0)
 
+    to_delete: list[Path] = []
+
     for mtime, p in candidates:
         max_mtime = max(max_mtime, mtime)
         h = parse_log(p)
@@ -155,6 +188,8 @@ def main() -> int:
 
         if h.status == 401:
             hits.append(h)
+            if CPA_401_AUTO_DELETE:
+                to_delete.append(p)
 
     # Update rolling per-day counts
     if usage_limit_hits:
@@ -177,17 +212,39 @@ def main() -> int:
         "usage_limit_counts": usage_limit_counts,
     })
 
-    # Priority 1: 401 immediate alert
+    # Priority 1: 401 immediate alert (+ auto delete to reduce token leakage risk)
     if hits:
+        deleted = 0
+        delete_errors: list[str] = []
+        if CPA_401_AUTO_DELETE and to_delete:
+            for p in to_delete:
+                try:
+                    p.unlink(missing_ok=True)
+                    deleted += 1
+                except Exception as e:
+                    delete_errors.append(f"{p.name}: {type(e).__name__}")
+
         lines = []
-        lines.append(f"CPA-plus 失败请求告警：发现 {len(hits)} 条 401（最近 5 分钟新增日志）")
+        lines.append(f"CPA-plus 失败请求告警：发现 {len(hits)} 条 401（新增日志）")
+        if CPA_401_AUTO_DELETE:
+            lines.append(f"处理：已自动删除 {deleted}/{len(to_delete)} 个 401 日志文件（防止 token 泄漏）")
+            if delete_errors:
+                lines.append("删除失败：" + "; ".join(delete_errors[:3]) + ("…" if len(delete_errors) > 3 else ""))
+
         for i, h in enumerate(hits[:5], 1):
             ts = h.timestamp or "(no timestamp)"
             et = h.error_type or "unknown_error"
-            msg = (h.message or "(no message)").strip()
-            if len(msg) > 160:
-                msg = msg[:160] + "…"
-            lines.append(f"{i}. {ts} status=401 type={et} :: {msg}")
+            # Do not echo full message to avoid leaking credentials; keep it very short.
+            msg = (h.message or "").strip()
+            if msg:
+                msg = msg[:80] + ("…" if len(msg) > 80 else "")
+            else:
+                msg = "(no message)"
+            u = (h.url or "").strip()
+            if u:
+                lines.append(f"{i}. {ts} status=401 type={et} url={u}")
+            else:
+                lines.append(f"{i}. {ts} status=401 type={et}")
         if len(hits) > 5:
             lines.append(f"… 还有 {len(hits)-5} 条未展开")
         sys.stdout.write("\n".join(lines) + "\n")
