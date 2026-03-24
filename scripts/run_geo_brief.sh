@@ -57,6 +57,21 @@ FEEDS=(
   "nhk-world|https://www3.nhk.or.jp/news/|https://www3.nhk.or.jp/rss/news/cat3.xml"
   "asahi-headlines|https://www.asahi.com/|https://www.asahi.com/rss/asahi/newsheadlines.rdf"
 
+  # Spanish:
+  "elpais-internacional|https://elpais.com/internacional/|https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/internacional/portada"
+  "bbc-mundo|https://www.bbc.com/mundo|https://feeds.bbci.co.uk/mundo/rss.xml"
+  "france24-es|https://www.france24.com/es/|https://www.france24.com/es/rss"
+
+  # Arabic:
+  "bbc-arabic|https://www.bbc.com/arabic|https://feeds.bbci.co.uk/arabic/rss.xml"
+  "dw-arabic|https://www.dw.com/ar/|https://rss.dw.com/rdf/rss-ar-top"
+  "france24-ar|https://www.france24.com/ar/|https://www.france24.com/ar/rss"
+  "aljazeera-ar|https://www.aljazeera.net/|https://www.aljazeera.net/aljazeerarss"
+
+  # Russian:
+  "bbc-russian|https://www.bbc.com/russian|https://feeds.bbci.co.uk/russian/rss.xml"
+  "dw-russian|https://www.dw.com/ru/|https://rss.dw.com/rdf/rss-ru-top"
+
   # Official/IO sources may block by region (IMF returned 403 here); keep disabled until reachable.
   # "imf-news|https://www.imf.org/|https://www.imf.org/external/rss/IMFNews.rss"
   # WorldBank RSS URL above returned 404 from this host; keep disabled until we find a reachable endpoint.
@@ -206,7 +221,14 @@ print('    - 中文标题（EN: Original English Title）')
 print('    - 中文标题（FR: Titre français original）')
 print('    - 中文标题（DE: Deutscher Originaltitel）')
 print('    - 中文标题（JA: 日本語の原題）')
-print('  - 语种判断优先根据 sourceBlog：lemonde/france24=FR；tagesschau/zdf/spiegel=DE；nhk/asahi=JA；其余默认 EN。')
+print('  - 语种判断优先根据 sourceBlog：')
+print('    - FR: lemonde, france24-fr')
+print('    - DE: tagesschau, zdf-nachrichten, spiegel')
+print('    - JA: nhk, asahi')
+print('    - ES: elpais, bbc-mundo, france24-es')
+print('    - AR: bbc-arabic, dw-arabic, france24-ar, aljazeera-ar')
+print('    - RU: bbc-russian, dw-russian')
+print('    - 其余默认 EN。')
 print('  - 如果标题本身已是中文，则不需要再翻译。')
 print('')
 print('【数据 JSON】')
