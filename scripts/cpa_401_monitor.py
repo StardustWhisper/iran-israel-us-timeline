@@ -1,268 +1,290 @@
 #!/usr/bin/env python3
-"""Monitor CLIProxyAPIPlus error logs.
+"""CPA token monitor (hourly poll).
 
-- Scans deploy-cli-proxy/logs/error-*.log for new files since last run.
-- Extracts a small, non-sensitive summary (timestamp/url/status/error.type/error.message).
-- Tracks daily counts of error.type == "usage_limit_reached".
-- Writes state to workspace/memory/cpa_401_monitor_state.json.
+Replaces the old log-based 401 monitor.
+
+Behavior (per Lambda):
+1) Do NOT scan logs.
+2) Every run, poll all token files and try to fetch remaining quota.
+   - If quota can be fetched successfully -> do nothing.
+3) If quota fetch returns:
+   - 401 + "Your authentication token has been invalidated. Please try signing in again."
+     -> refresh token, retry once; if still cannot fetch quota -> delete token file.
+   - 401 + "Your OpenAI account has been deactivated, ..."
+     -> delete token file immediately.
 
 Exit codes:
-  0: nothing to alert
-  2: should alert (stdout contains alert text)
+  0: no action needed (all OK)
+  2: refreshed and/or deleted one or more tokens (stdout contains summary)
+  1: script error
+
+Notes:
+- The quota endpoint used for ChatGPT/Codex OAuth tokens is:
+    https://chatgpt.com/backend-api/codex/usage
+- Safe mode is supported via --dry-run (no writes / no deletes).
 """
 
 from __future__ import annotations
 
+import argparse
+import glob
 import json
-import os
-import re
+import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
-LOG_DIR = Path("/home/ubuntu/github/deploy-cli-proxy/logs")
-STATE_PATH = Path("/home/ubuntu/.openclaw/workspace/memory/cpa_401_monitor_state.json")
-GLOB = "error-*.log"
+import urllib.request
+import urllib.error
 
-STATUS_RE = re.compile(r"^\s*Status:\s*(\d+)")
-URL_RE = re.compile(r"^\s*URL:\s*(\S+)")
-TS_RE = re.compile(r"^\s*Timestamp:\s*(.+)")
-# JSON error line in section "=== API RESPONSE ===" is often one-liner
-JSON_LINE_RE = re.compile(r"^\{\"error\":\{.*\}\}$")
+TOKEN_GLOB = "/home/ubuntu/github/deploy-cli-proxy/auths/token_*.json"
+REFRESH_TOKEN_PY = "/home/ubuntu/github/deploy-cli-proxy/backup/refresh_token.py"
+CODEX_USAGE_URL = "https://chatgpt.com/backend-api/codex/usage"
 
-# Extra patterns for variant log formats
-STATUS_ANY_RE = re.compile(r"\b(status|status_code|http_status)\b\s*[:=]\s*(\d{3})\b", re.I)
-HTTP_LINE_RE = re.compile(r"\bHTTP/\d(?:\.\d)?\b\s+(\d{3})\b")
+# Substring match (do NOT include a leading "401 ", backend returns message without it)
+INVALIDATED_SUBSTR = "authentication token has been invalidated"
+DEACTIVATED_SUBSTR = "account has been deactivated"
 
-# Default behavior: if a 401 log may contain leaked tokens, delete the log file.
-CPA_401_AUTO_DELETE = os.getenv("CPA_401_AUTO_DELETE", "1") == "1"
-
-# Default: keep usage-limit accumulation silent unless explicitly enabled.
-USAGE_LIMIT_ALERT_THRESHOLD = int(os.getenv("CPA_USAGE_LIMIT_ALERT_THRESHOLD", "10"))
-USAGE_LIMIT_ALERT_ENABLED = os.getenv("CPA_USAGE_LIMIT_ALERT_ENABLED", "0") == "1"
-LOCAL_TZ = timezone(timedelta(hours=8))  # Asia/Shanghai
 
 @dataclass
-class Hit:
-    file: str
-    timestamp: str | None
-    url: str | None
+class TokenFile:
+    path: Path
+    email: str | None
+    account_id: str | None
+    access_token: str | None
+
+
+@dataclass
+class PollResult:
+    ok: bool
     status: int | None
-    error_type: str | None
-    message: str | None
+    body_text: str
+    parsed: Dict[str, Any] | None
 
 
-def load_state() -> dict:
-    if STATE_PATH.exists():
-        try:
-            return json.loads(STATE_PATH.read_text())
-        except Exception:
-            return {}
-    return {}
-
-
-def save_state(state: dict) -> None:
-    STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    tmp = STATE_PATH.with_suffix(".tmp")
-    tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2))
-    os.replace(tmp, STATE_PATH)
-
-
-def parse_log(path: Path) -> Hit:
-    timestamp = None
-    url = None
-    status = None
-    error_type = None
-    message = None
-
-    # Read only first ~500 lines + last ~400 lines to avoid huge bodies
+def load_token_file(path: Path) -> TokenFile:
     try:
-        lines = path.read_text(errors="replace").splitlines()
+        data = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
-        return Hit(file=path.name, timestamp=None, url=None, status=None, error_type=None, message=None)
+        return TokenFile(path=path, email=None, account_id=None, access_token=None)
 
-    head = lines[:500]
-    tail = lines[-400:] if len(lines) > 400 else lines
+    email = (data.get("email") or None)
+    account_id = (data.get("account_id") or None)
+    access_token = (data.get("access_token") or None)
+    if isinstance(email, str):
+        email = email.strip() or None
+    if isinstance(account_id, str):
+        account_id = account_id.strip() or None
+    if isinstance(access_token, str):
+        access_token = access_token.strip() or None
 
-    for line in head:
-        if timestamp is None:
-            m = TS_RE.match(line)
-            if m:
-                timestamp = m.group(1).strip()
-                continue
-        if url is None:
-            m = URL_RE.match(line)
-            if m:
-                url = m.group(1).strip()
-                continue
+    return TokenFile(path=path, email=email, account_id=account_id, access_token=access_token)
 
-    # Try to detect status from multiple formats (tail is most likely to contain response)
-    for line in tail:
-        if status is None:
-            m = STATUS_RE.match(line)
-            if m:
-                try:
-                    status = int(m.group(1))
-                except Exception:
-                    status = None
-                continue
-            m2 = STATUS_ANY_RE.search(line)
-            if m2:
-                try:
-                    status = int(m2.group(2))
-                except Exception:
-                    status = None
-                continue
-            m3 = HTTP_LINE_RE.search(line)
-            if m3:
-                try:
-                    status = int(m3.group(1))
-                except Exception:
-                    status = None
-                continue
 
-        # Extract error json if present
-        if JSON_LINE_RE.match(line.strip()):
-            try:
-                obj = json.loads(line.strip())
-                if error_type is None:
-                    error_type = obj.get("error", {}).get("type")
-                if message is None:
-                    message = obj.get("error", {}).get("message")
-            except Exception:
-                pass
+def _try_parse_json(text: str) -> Dict[str, Any] | None:
+    try:
+        obj = json.loads(text)
+        return obj if isinstance(obj, dict) else None
+    except Exception:
+        return None
 
-        # Fallback: sometimes the file contains an inline "401" mention rather than Status:
-        if status is None and "401" in line:
-            m4 = re.search(r"\b401\b", line)
-            if m4:
-                status = 401
 
-    return Hit(file=path.name, timestamp=timestamp, url=url, status=status, error_type=error_type, message=message)
+def http_get_codex_usage(tf: TokenFile, timeout_s: int = 25) -> PollResult:
+    token = (tf.access_token or "").strip()
+    if not token:
+        return PollResult(ok=False, status=None, body_text="missing access_token", parsed=None)
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+        "User-Agent": "MOSS-cpa-token-monitor",
+        # Codex CLI headers (helps avoid some backend behavior differences)
+        "Originator": "codex_cli_rs",
+    }
+    if tf.account_id:
+        headers["Chatgpt-Account-Id"] = tf.account_id
+
+    req = urllib.request.Request(CODEX_USAGE_URL, headers=headers, method="GET")
+
+    try:
+        with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+            raw = resp.read()
+            txt = raw.decode("utf-8", "replace")
+            parsed = _try_parse_json(txt)
+            return PollResult(ok=(resp.status == 200), status=resp.status, body_text=txt, parsed=parsed)
+    except urllib.error.HTTPError as e:
+        raw = e.read()
+        txt = raw.decode("utf-8", "replace")
+        parsed = _try_parse_json(txt)
+        return PollResult(ok=False, status=e.code, body_text=txt, parsed=parsed)
+    except Exception as e:
+        return PollResult(ok=False, status=None, body_text=f"{type(e).__name__}: {e}", parsed=None)
+
+
+def extract_error(parsed: Dict[str, Any] | None) -> Tuple[str | None, str | None]:
+    """Return (error_code, error_message) if present."""
+    if not isinstance(parsed, dict):
+        return None, None
+    err = parsed.get("error")
+    if not isinstance(err, dict):
+        return None, None
+    code = err.get("code")
+    msg = err.get("message")
+    code_s = code.strip() if isinstance(code, str) else None
+    msg_s = msg.strip() if isinstance(msg, str) else None
+    return code_s or None, msg_s or None
+
+
+def is_deactivated(r: PollResult) -> bool:
+    if r.status != 401:
+        return False
+    code, msg = extract_error(r.parsed)
+    hay = "\n".join([x for x in [code or "", msg or "", r.body_text or ""] if x]).lower()
+    return (code == "account_deactivated") or (DEACTIVATED_SUBSTR in hay)
+
+
+def is_invalidated(r: PollResult) -> bool:
+    if r.status != 401:
+        return False
+    code, msg = extract_error(r.parsed)
+    hay = "\n".join([x for x in [code or "", msg or "", r.body_text or ""] if x]).lower()
+    # There isn't a stable error.code guaranteed here; rely on message substring.
+    return INVALIDATED_SUBSTR in hay
+
+
+def refresh_token_file(path: Path, dry_run: bool) -> Tuple[bool, str]:
+    """Refresh a token file in-place using deploy-cli-proxy/backup/refresh_token.py.
+
+    Returns: (success, detail)
+    """
+    if dry_run:
+        return True, "dry-run: refresh skipped"
+
+    if not Path(REFRESH_TOKEN_PY).exists():
+        return False, f"refresh script not found: {REFRESH_TOKEN_PY}"
+
+    # Force refresh regardless of expiry, since invalidated token needs refresh now.
+    cmd = [sys.executable, REFRESH_TOKEN_PY, str(path), "--force"]
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if p.returncode == 0:
+            return True, "refreshed"
+        tail = (p.stderr or p.stdout or "").strip().splitlines()[-3:]
+        return False, "refresh failed: " + (" | ".join(tail) if tail else f"rc={p.returncode}")
+    except Exception as e:
+        return False, f"refresh exception: {type(e).__name__}: {e}"
+
+
+def delete_token_file(path: Path, dry_run: bool) -> Tuple[bool, str]:
+    if dry_run:
+        return True, "dry-run: delete skipped"
+    try:
+        path.unlink(missing_ok=True)
+        return True, "deleted"
+    except Exception as e:
+        return False, f"delete failed: {type(e).__name__}: {e}"
 
 
 def main() -> int:
-    state = load_state()
-    last_mtime = float(state.get("last_mtime", 0))
+    ap = argparse.ArgumentParser(description="CPA token monitor: poll tokens and auto-refresh/delete on 401 errors.")
+    ap.add_argument("--dry-run", action="store_true", help="Do not refresh or delete any token files (print what would happen).")
+    ap.add_argument("--limit", type=int, default=0, help="Optional: only process first N token files (0 = all).")
+    args = ap.parse_args()
 
-    if not LOG_DIR.exists():
-        # Still update state to avoid spam
-        save_state({"last_mtime": last_mtime, "last_run": datetime.now(timezone.utc).isoformat().replace('+00:00','Z')})
+    files = [Path(p) for p in sorted(glob.glob(TOKEN_GLOB))]
+    if args.limit and args.limit > 0:
+        files = files[: args.limit]
+
+    if not files:
         return 0
 
-    candidates = []
-    for p in LOG_DIR.glob(GLOB):
-        try:
-            st = p.stat()
-        except FileNotFoundError:
+    refreshed: list[str] = []
+    deleted: list[str] = []
+    notes: list[str] = []
+
+    for path in files:
+        tf = load_token_file(path)
+        label = tf.email or path.name
+
+        r1 = http_get_codex_usage(tf)
+        if r1.ok:
             continue
-        # Use >= to avoid missing events when mtimes are equal (coarse FS timestamp)
-        if st.st_mtime >= last_mtime:
-            candidates.append((st.st_mtime, p))
 
-    if not candidates:
-        save_state({"last_mtime": last_mtime, "last_run": datetime.now(timezone.utc).isoformat().replace('+00:00','Z')})
+        # 401 deactivated -> delete immediately
+        if is_deactivated(r1):
+            ok, detail = delete_token_file(path, args.dry_run)
+            if ok:
+                deleted.append(label)
+            else:
+                notes.append(f"{label}: {detail}")
+            continue
+
+        # 401 invalidated -> refresh -> retry once -> if still not OK -> delete
+        if is_invalidated(r1):
+            ok_refresh, refresh_detail = refresh_token_file(path, args.dry_run)
+            if ok_refresh:
+                refreshed.append(label)
+            else:
+                ok_del, del_detail = delete_token_file(path, args.dry_run)
+                if ok_del:
+                    deleted.append(label)
+                else:
+                    notes.append(f"{label}: refresh failed ({refresh_detail}); delete failed ({del_detail})")
+                continue
+
+            tf2 = load_token_file(path)
+            r2 = http_get_codex_usage(tf2)
+            if r2.ok:
+                continue
+
+            ok_del, del_detail = delete_token_file(path, args.dry_run)
+            if ok_del:
+                deleted.append(label)
+            else:
+                notes.append(f"{label}: refreshed but still not ok; {del_detail}")
+            continue
+
+        # Other errors: ignore (per requirement)
+        continue
+
+    if not refreshed and not deleted and not notes:
         return 0
 
-    candidates.sort(key=lambda x: x[0])
+    lines: list[str] = []
+    header = "CPA token poll: actions detected"
+    if args.dry_run:
+        header += " (dry-run)"
+    lines.append(header)
+    lines.append(f"scanned={len(files)} refreshed={len(refreshed)} deleted={len(deleted)}")
 
-    hits: list[Hit] = []
-    max_mtime = last_mtime
+    if refreshed:
+        lines.append("refreshed:")
+        for x in refreshed[:50]:
+            lines.append(f"- {x}")
+        if len(refreshed) > 50:
+            lines.append(f"- ... +{len(refreshed)-50}")
 
-    # Per-day counter for usage_limit_reached
-    usage_limit_hits = 0
-    usage_limit_date = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
-    usage_limit_counts = dict(state.get("usage_limit_counts", {}))
-    usage_limit_counts.setdefault(usage_limit_date, 0)
+    if deleted:
+        lines.append("deleted:")
+        for x in deleted[:50]:
+            lines.append(f"- {x}")
+        if len(deleted) > 50:
+            lines.append(f"- ... +{len(deleted)-50}")
 
-    to_delete: list[Path] = []
+    if notes:
+        lines.append("notes:")
+        for x in notes[:50]:
+            lines.append(f"- {x}")
+        if len(notes) > 50:
+            lines.append(f"- ... +{len(notes)-50}")
 
-    for mtime, p in candidates:
-        max_mtime = max(max_mtime, mtime)
-        h = parse_log(p)
-
-        # Track usage limit errors (even if status is not 401)
-        if h.error_type == "usage_limit_reached":
-            usage_limit_hits += 1
-
-        if h.status == 401:
-            hits.append(h)
-            if CPA_401_AUTO_DELETE:
-                to_delete.append(p)
-
-    # Update rolling per-day counts
-    if usage_limit_hits:
-        usage_limit_counts[usage_limit_date] = int(usage_limit_counts.get(usage_limit_date, 0)) + usage_limit_hits
-
-    # Keep only recent 14 days to avoid unbounded growth
-    try:
-        cutoff = datetime.now(LOCAL_TZ) - timedelta(days=14)
-        usage_limit_counts = {
-            k: v for k, v in usage_limit_counts.items()
-            if datetime.strptime(k, "%Y-%m-%d").replace(tzinfo=LOCAL_TZ) >= cutoff
-        }
-    except Exception:
-        pass
-
-    save_state({
-        "last_mtime": max_mtime,
-        "last_run": datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
-        "scanned": len(candidates),
-        "usage_limit_counts": usage_limit_counts,
-    })
-
-    # Priority 1: 401 immediate alert (+ auto delete to reduce token leakage risk)
-    if hits:
-        deleted = 0
-        delete_errors: list[str] = []
-        if CPA_401_AUTO_DELETE and to_delete:
-            for p in to_delete:
-                try:
-                    p.unlink(missing_ok=True)
-                    deleted += 1
-                except Exception as e:
-                    delete_errors.append(f"{p.name}: {type(e).__name__}")
-
-        lines = []
-        lines.append(f"CPA-plus 失败请求告警：发现 {len(hits)} 条 401（新增日志）")
-        if CPA_401_AUTO_DELETE:
-            lines.append(f"处理：已自动删除 {deleted}/{len(to_delete)} 个 401 日志文件（防止 token 泄漏）")
-            if delete_errors:
-                lines.append("删除失败：" + "; ".join(delete_errors[:3]) + ("…" if len(delete_errors) > 3 else ""))
-
-        for i, h in enumerate(hits[:5], 1):
-            ts = h.timestamp or "(no timestamp)"
-            et = h.error_type or "unknown_error"
-            # Do not echo full message to avoid leaking credentials; keep it very short.
-            msg = (h.message or "").strip()
-            if msg:
-                msg = msg[:80] + ("…" if len(msg) > 80 else "")
-            else:
-                msg = "(no message)"
-            u = (h.url or "").strip()
-            if u:
-                lines.append(f"{i}. {ts} status=401 type={et} url={u}")
-            else:
-                lines.append(f"{i}. {ts} status=401 type={et}")
-        if len(hits) > 5:
-            lines.append(f"… 还有 {len(hits)-5} 条未展开")
-        sys.stdout.write("\n".join(lines) + "\n")
-        return 2
-
-    # Priority 2: usage_limit_reached accumulation alert (disabled by default; enable explicitly when needed)
-    today_total = int(usage_limit_counts.get(usage_limit_date, 0))
-    if USAGE_LIMIT_ALERT_ENABLED and today_total >= USAGE_LIMIT_ALERT_THRESHOLD and usage_limit_hits:
-        sys.stdout.write(
-            "\n".join([
-                f"CPA-plus 用量告警：检测到 usage_limit_reached（今日累计 {today_total} 次，阈值 {USAGE_LIMIT_ALERT_THRESHOLD}）",
-                "建议：检查是否触发了上游配额/并发/速率限制，并考虑降级/重试退避。",
-            ]) + "\n"
-        )
-        return 2
-
-    return 0
+    sys.stdout.write("\n".join(lines) + "\n")
+    return 2
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        raise SystemExit(main())
+    except KeyboardInterrupt:
+        raise SystemExit(1)
