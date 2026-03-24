@@ -72,6 +72,25 @@ FEEDS=(
   "bbc-russian|https://www.bbc.com/russian|https://feeds.bbci.co.uk/russian/rss.xml"
   "dw-russian|https://www.dw.com/ru/|https://rss.dw.com/rdf/rss-ru-top"
 
+  # Portuguese (PT):
+  "uol-noticias|https://noticias.uol.com.br/|https://rss.uol.com.br/feed/noticias.xml"
+  "g1-mundo|https://g1.globo.com/mundo/|https://g1.globo.com/rss/g1/mundo/"
+
+  # Italian (IT):
+  "ansa-mondo|https://www.ansa.it/mondo/|https://www.ansa.it/sito/notizie/mondo/mondo_rss.xml"
+  "repubblica-esteri|https://www.repubblica.it/esteri/|https://www.repubblica.it/rss/esteri/rss2.0.xml"
+
+  # Korean (KO):
+  "yna|https://www.yna.co.kr/|https://www.yna.co.kr/rss/news.xml"
+  "koreaherald|https://www.koreaherald.com/|https://www.koreaherald.com/rss/rss.xml"
+
+  # Turkish (TR):
+  "aa-dunya|https://www.aa.com.tr/tr|https://www.aa.com.tr/tr/rss/default?cat=dunya"
+  "hurriyet-dunya|https://www.hurriyet.com.tr/dunya/|https://www.hurriyet.com.tr/rss/dunya"
+
+  # Persian (FA):
+  "bbc-persian|https://www.bbc.com/persian|https://www.bbc.com/persian/index.xml"
+
   # Official/IO sources may block by region (IMF returned 403 here); keep disabled until reachable.
   # "imf-news|https://www.imf.org/|https://www.imf.org/external/rss/IMFNews.rss"
   # WorldBank RSS URL above returned 404 from this host; keep disabled until we find a reachable endpoint.
@@ -228,6 +247,11 @@ print('    - JA: nhk, asahi')
 print('    - ES: elpais, bbc-mundo, france24-es')
 print('    - AR: bbc-arabic, dw-arabic, france24-ar, aljazeera-ar')
 print('    - RU: bbc-russian, dw-russian')
+print('    - PT: uol-noticias, g1-mundo')
+print('    - IT: ansa-mondo, repubblica-esteri')
+print('    - KO: yna, koreaherald')
+print('    - TR: aa-dunya, hurriyet-dunya')
+print('    - FA: bbc-persian')
 print('    - 其余默认 EN。')
 print('  - 如果标题本身已是中文，则不需要再翻译。')
 print('')
