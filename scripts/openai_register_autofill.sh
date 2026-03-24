@@ -11,7 +11,7 @@ REGISTER_DIR="${REGISTER_DIR:-/home/ubuntu/.openclaw/workspace/openai-register}"
 PY_BIN="${PY_BIN:-$REGISTER_DIR/.venv/bin/python}"
 
 TARGET_COUNT="${TARGET_COUNT:-200}"
-MAX_PER_RUN="${MAX_PER_RUN:-10}"   # safety cap per hourly run
+MAX_PER_RUN="${MAX_PER_RUN:-20}"   # safety cap per hourly run
 SLEEP_MIN="${SLEEP_MIN:-30}"
 SLEEP_MAX="${SLEEP_MAX:-120}"
 
