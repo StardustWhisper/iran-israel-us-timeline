@@ -18,8 +18,15 @@ PUB_RE = re.compile(r"^\s*Published:\s*(\d{4}-\d{2}-\d{2}).*$")
 
 
 def run(*cmd: str) -> str:
-    # blogwatcher may output ANSI colors; keep raw text but in text mode
-    return subprocess.check_output(list(cmd), text=True, stderr=subprocess.STDOUT)
+    """Run a command and return stdout as text.
+
+    Never raise on non-zero exit: upstream failures should degrade gracefully
+    (one broken feed must not break the whole daily brief).
+    """
+    try:
+        return subprocess.check_output(list(cmd), text=True, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        return e.output or ""
 
 
 def parse_articles(text: str) -> list[dict]:
