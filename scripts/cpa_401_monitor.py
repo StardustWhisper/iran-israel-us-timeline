@@ -38,7 +38,13 @@ from typing import Any, Dict, Optional, Tuple
 import urllib.request
 import urllib.error
 
-TOKEN_GLOB = "/home/ubuntu/github/deploy-cli-proxy/auths/token_*.json"
+# Safety constraint: this script only touches token files and codex token files.
+# - token_*   (OAuth tokens stored by deploy-cli-proxy)
+# - codex*    (future/alternate codex token filenames)
+TOKEN_GLOBS = [
+    "/home/ubuntu/github/deploy-cli-proxy/auths/token_*.json",
+    "/home/ubuntu/github/deploy-cli-proxy/auths/codex*.json",
+]
 REFRESH_TOKEN_PY = "/home/ubuntu/github/deploy-cli-proxy/backup/refresh_token.py"
 CODEX_USAGE_URL = "https://chatgpt.com/backend-api/codex/usage"
 
@@ -192,7 +198,12 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=0, help="Optional: only process first N token files (0 = all).")
     args = ap.parse_args()
 
-    files = [Path(p) for p in sorted(glob.glob(TOKEN_GLOB))]
+    # Only process token/codex token files.
+    files: list[Path] = []
+    for g in TOKEN_GLOBS:
+        files.extend(Path(p) for p in glob.glob(g))
+    files = sorted(set(files), key=lambda x: str(x))
+
     if args.limit and args.limit > 0:
         files = files[: args.limit]
 
