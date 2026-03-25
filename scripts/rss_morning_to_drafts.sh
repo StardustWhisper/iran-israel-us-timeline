@@ -349,11 +349,14 @@ text = ''
 if isinstance(obj, dict) and 'result' in obj and isinstance(obj.get('result'), dict):
     payloads = obj['result'].get('payloads') or []
     if payloads and isinstance(payloads, list):
-        text = (payloads[0].get('text') or '').strip()
+        # Prefer the LONGER payload (some agents send a short partial first)
+        best = max(payloads, key=lambda p: len((p.get('text') or '').strip()))
+        text = (best.get('text') or '').strip()
 elif isinstance(obj, dict) and 'payloads' in obj:
     payloads = obj.get('payloads') or []
     if payloads and isinstance(payloads, list):
-        text = (payloads[0].get('text') or '').strip()
+        best = max(payloads, key=lambda p: len((p.get('text') or '').strip()))
+        text = (best.get('text') or '').strip()
 
 if not text:
     raise KeyError(f"No text payload found. top_keys={list(obj.keys())}")
