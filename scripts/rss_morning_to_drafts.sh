@@ -136,25 +136,44 @@ CLAIMS_RAW="$OUT_DIR/claims_raw.json"
 CLAIMS_JSON="$OUT_DIR/claims.json"
 export CLAIMS_RAW CLAIMS_JSON
 
-if ! bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 900 --json --message "你现在不是写文章，而是在搭建【观点卡片（Claim Cards）】。
+normalize_claims() {
+  python3 - <<'PY'
+import json, os, pathlib
+raw_path = pathlib.Path(os.environ['CLAIMS_RAW'])
+out_path = pathlib.Path(os.environ['CLAIMS_JSON'])
+text = raw_path.read_text(encoding='utf-8')
+start = text.find('{')
+if start == -1:
+    raise SystemExit('no json')
+obj = json.loads(text[start:])
+
+payloads = []
+if isinstance(obj, dict) and 'result' in obj and isinstance(obj.get('result'), dict):
+    payloads = obj['result'].get('payloads') or []
+elif isinstance(obj, dict) and 'payloads' in obj:
+    payloads = obj.get('payloads') or []
+
+if not payloads:
+    raise SystemExit('no payloads')
+
+inner = (max(payloads, key=lambda p: len((p.get('text') or '').strip())).get('text') or '').strip()
+start2 = inner.find('{')
+if start2 == -1:
+    raise SystemExit('payload has no json')
+claims = json.loads(inner[start2:])
+claims['qualityOk'] = bool(claims.get('cards')) and bool(claims.get('originalComponents'))
+out_path.write_text(json.dumps(claims, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+print('WROTE', str(out_path))
+PY
+}
+
+# Try twice; sometimes the agent returns an empty payload list.
+CLAIMS_OK=0
+for attempt in 1 2; do
+  if bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 900 --json --message "你现在不是写文章，而是在搭建【观点卡片（Claim Cards）】。
 
 输入：
 - 二次选题标题：${TITLE}
-- 一句话观点（thesis）：$(python3 - <<'PY'
-import json, os
-p=os.environ.get('TITLE_JSON','')
-if p and os.path.exists(p):
-    t=open(p,'r',encoding='utf-8').read(); s=t.find('{'); obj=json.loads(t[s:])
-    if 'result' in obj and isinstance(obj.get('result'), dict):
-        payloads=obj['result'].get('payloads') or []
-        if payloads:
-            inner=(payloads[0].get('text') or '').strip(); i=inner.find('{')
-            if i!=-1:
-                try: obj=json.loads(inner[i:])
-                except: pass
-    print((obj.get('thesis') or '').strip())
-PY
-)
 - 源标题（仅供定位）：${SOURCE_TITLE}
 - 主参考链接（仅作为事实边界，可浏览但不要照抄）：${URL}
 
@@ -184,6 +203,15 @@ PY
 - cards 里至少 2 张卡片必须来自非中文来源（ja/ko/ru/en 均可）
 - 如果不确定就把 confidence 降到 low，low 的观点后续写作时不要当硬事实
 " > "$CLAIMS_RAW"; then
+    if normalize_claims; then
+      CLAIMS_OK=1
+      break
+    fi
+  fi
+  sleep 1
+done
+
+if [[ "$CLAIMS_OK" != "1" ]]; then
   WEB_RESEARCH_STATUS="failed"
   python3 - <<'PY' > "$CLAIMS_JSON"
 import json, os
@@ -195,26 +223,6 @@ print(json.dumps({
     'antiParaphraseRules': [],
     'qualityOk': False,
 }, ensure_ascii=False, indent=2))
-PY
-else
-  # Normalize claims JSON: unwrap openclaw wrapper and keep only the inner object
-  python3 - <<'PY'
-import json, os, pathlib
-raw_path = pathlib.Path(os.environ['CLAIMS_RAW'])
-out_path = pathlib.Path(os.environ['CLAIMS_JSON'])
-text = raw_path.read_text(encoding='utf-8')
-start = text.find('{')
-obj = json.loads(text[start:])
-if 'result' in obj and isinstance(obj.get('result'), dict):
-    payloads = obj['result'].get('payloads') or []
-    if payloads:
-        inner = (max(payloads, key=lambda p: len((p.get('text') or '').strip())).get('text') or '').strip()
-        start2 = inner.find('{')
-        if start2 != -1:
-            obj = json.loads(inner[start2:])
-obj['qualityOk'] = bool(obj.get('cards'))
-out_path.write_text(json.dumps(obj, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-print('WROTE', str(out_path))
 PY
 fi
 
