@@ -530,7 +530,7 @@ PY
 # 2b) Editor gate (LINUS by default): review and request one revision if needed
 STAGE="edit_review"
 EDITOR_AGENT="${EDITOR_AGENT:-linus}"
-EDITOR_THRESHOLD="${EDITOR_THRESHOLD:-80}"
+EDITOR_THRESHOLD="${EDITOR_THRESHOLD:-90}"
 EDITOR_SESSION_ID="${HUGO_SESSION_ID}:editor"
 EDITOR_JSON="$OUT_DIR/editor.json"
 EDITOR_RAW="$OUT_DIR/editor_raw.json"
@@ -594,33 +594,51 @@ print(json.dumps({'pass': True, 'score': 100, 'mustFix': [], 'niceToHave': [], '
 PY
 fi
 
-# Apply at most one revision
-EDITOR_PASS=$(python3 - <<'PY'
+# Apply up to N revisions (default 3)
+MAX_REVISIONS="${MAX_REVISIONS:-3}"
+export MAX_REVISIONS
+
+get_editor_fields() {
+  python3 - <<'PY'
 import json, os
 j=json.load(open(os.environ['EDITOR_JSON'],'r',encoding='utf-8'))
-print('1' if j.get('pass') else '0')
+print('PASS=' + ('1' if j.get('pass') else '0'))
+print('SCORE=' + str(int(j.get('score') or 0)))
+print('BRIEF=' + (j.get('rewriteBrief') or '').strip().replace('\n',' '))
 PY
-)
-EDITOR_SCORE=$(python3 - <<'PY'
-import json, os
-j=json.load(open(os.environ['EDITOR_JSON'],'r',encoding='utf-8'))
-print(int(j.get('score') or 0))
-PY
-)
-REWRITE_BRIEF=$(python3 - <<'PY'
-import json, os
-j=json.load(open(os.environ['EDITOR_JSON'],'r',encoding='utf-8'))
-print((j.get('rewriteBrief') or '').strip())
+}
+
+rev=0
+while true; do
+  eval "$(get_editor_fields)"
+  if [[ "$PASS" == "1" && "$SCORE" -ge "$EDITOR_THRESHOLD" ]]; then
+    break
+  fi
+  if [[ $rev -ge $MAX_REVISIONS ]]; then
+    echo "MORNING_FAIL stage=edit_revise web_research_status=$WEB_RESEARCH_STATUS article_status=$ARTICLE_STATUS cover_status=$COVER_STATUS notion_status=$NOTION_SYNC_STATUS media_id=$WECHAT_MEDIA_ID reason=editor_threshold_not_met score=$SCORE" >&2
+    exit 5
+  fi
+  if [[ -z "${BRIEF:-}" ]]; then
+    echo "MORNING_FAIL stage=edit_revise web_research_status=$WEB_RESEARCH_STATUS article_status=$ARTICLE_STATUS cover_status=$COVER_STATUS notion_status=$NOTION_SYNC_STATUS media_id=$WECHAT_MEDIA_ID reason=missing_rewrite_brief score=$SCORE" >&2
+    exit 6
+  fi
+
+  STAGE="edit_revise"
+  rev=$((rev+1))
+
+  # refresh article text snapshot for prompt
+  ARTICLE_TEXT=$(python3 - <<'PY'
+import pathlib, os
+p=pathlib.Path(os.environ['ARTICLE_MD_RAW'])
+text=p.read_text(encoding='utf-8')
+print(text[:12000])
 PY
 )
 
-if [[ "$EDITOR_PASS" != "1" || "$EDITOR_SCORE" -lt "$EDITOR_THRESHOLD" ]]; then
-  STAGE="edit_revise"
-  if [[ -n "$REWRITE_BRIEF" ]]; then
-    if bash scripts/openclaw_cli.sh agent --agent hugo --session-id "$HUGO_SESSION_ID" --to +15555550123 --timeout 900 --json --message "你现在要按编辑意见改稿（只改一版）。
+  if bash scripts/openclaw_cli.sh agent --agent hugo --session-id "$HUGO_SESSION_ID" --to +15555550123 --timeout 900 --json --message "你现在要按编辑意见改稿（第 ${rev}/${MAX_REVISIONS} 版）。
 
 二次选题标题：${TITLE}
-编辑改稿指令：${REWRITE_BRIEF}
+编辑改稿指令：${BRIEF}
 
 要求：
 - 保留原标题（必须是二次标题）
@@ -631,9 +649,10 @@ if [[ "$EDITOR_PASS" != "1" || "$EDITOR_SCORE" -lt "$EDITOR_THRESHOLD" ]]; then
 原稿如下：
 ${ARTICLE_TEXT}
 " > "$ARTICLE_JSON"; then
-      echo "WARN: revision failed; keep original draft" >&2
-    else
-      python3 - <<'PY'
+    echo "WARN: revision failed; keep original draft" >&2
+    exit 7
+  else
+    python3 - <<'PY'
 import json, pathlib, os, re
 article_json = pathlib.Path(os.environ['ARTICLE_JSON'])
 article_md_raw = pathlib.Path(os.environ['ARTICLE_MD_RAW'])
@@ -651,16 +670,56 @@ elif isinstance(obj, dict) and 'payloads' in obj:
     if payloads:
         best=max(payloads, key=lambda p: len((p.get('text') or '').strip()))
         text=(best.get('text') or '').strip()
-if text:
-    # strip common prefaces
-    for pat in [r'^以下是.*?\n+', r'^下面是.*?\n+', r'^当然可以.*?\n+']:
-        text=re.sub(pat,'',text,flags=re.S)
-    article_md_raw.write_text(text.strip()+'\n', encoding='utf-8')
-    print('WROTE', str(article_md_raw))
+if not text:
+    raise SystemExit('no revised text')
+for pat in [r'^以下是.*?\n+', r'^下面是.*?\n+', r'^当然可以.*?\n+']:
+    text=re.sub(pat,'',text,flags=re.S)
+article_md_raw.write_text(text.strip()+'\n', encoding='utf-8')
+print('WROTE', str(article_md_raw))
 PY
-    fi
   fi
-fi
+
+  # re-run editor on revised draft
+  STAGE="edit_review"
+  ARTICLE_TEXT=$(python3 - <<'PY'
+import pathlib, os
+p=pathlib.Path(os.environ['ARTICLE_MD_RAW'])
+text=p.read_text(encoding='utf-8')
+print(text[:12000])
+PY
+)
+
+  if bash scripts/openclaw_cli.sh agent --agent "$EDITOR_AGENT" --session-id "$EDITOR_SESSION_ID" --to +15555550123 --timeout 600 --json --message "你现在是【公众号文章编辑/审稿人】。请复审修订稿，只输出严格 JSON，结构同前。
+
+文章二次标题：${TITLE}
+源链接：${URL}
+
+正文（Markdown）：
+${ARTICLE_TEXT}
+
+输出 JSON：{\"pass\":true,\"score\":0,\"mustFix\":[],\"niceToHave\":[],\"riskFlags\":[],\"rewriteBrief\":\"...\"}
+" > "$EDITOR_RAW"; then
+    python3 - <<'PY'
+import json, os, pathlib
+raw = pathlib.Path(os.environ['EDITOR_RAW']).read_text(encoding='utf-8')
+start=raw.find('{')
+obj=json.loads(raw[start:])
+if 'result' in obj and isinstance(obj.get('result'), dict):
+    payloads=obj['result'].get('payloads') or []
+    if payloads:
+        t=max(payloads, key=lambda p: len((p.get('text') or '').strip())).get('text') or ''
+        t=t.strip(); s=t.find('{')
+        if s!=-1:
+            obj=json.loads(t[s:])
+path=pathlib.Path(os.environ['EDITOR_JSON'])
+path.write_text(json.dumps(obj, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+print('WROTE', str(path))
+PY
+  else
+    echo "WARN: editor re-review failed" >&2
+    break
+  fi
+done
 
 # 2c) Sanity check: never publish placeholder / too-short drafts
 STAGE="sanity_check"
