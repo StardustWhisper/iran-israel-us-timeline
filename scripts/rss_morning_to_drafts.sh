@@ -37,7 +37,7 @@ fi
 
 export BRIEF
 
-TITLE=$(python3 - <<'PY'
+SOURCE_TITLE=$(python3 - <<'PY'
 import json, os
 p=os.environ['BRIEF']
 d=json.load(open(p,'r',encoding='utf-8'))
@@ -51,6 +51,57 @@ d=json.load(open(p,'r',encoding='utf-8'))
 print(d['top']['url'])
 PY
 )
+
+# 0) Generate our OWN publishable title + viewpoint (must NOT equal source title)
+# Requirements (per Lambda):
+# - Title must differ from the source title
+# - Do secondary topic selection: form a clear viewpoint based on the recommended topic
+STAGE="title"
+TITLE_JSON="$OUT_DIR/title.json"
+TITLE=$(bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 300 --json --message "你现在做【二次选题】。我会给你：源标题 + 源链接 + 目标平台（公众号）。
+
+请输出【严格 JSON 对象】（不要 markdown、不要前后解释）：
+{
+  \"title\": \"新的中文标题（≤28字，不要与源标题相同，也不要同义改写得太像；要有观点/结论倾向）\",
+  \"thesis\": \"一句话观点（可写进文章开头的核心判断）\",
+  \"angle\": \"文章角度（科普/工程实践/产品拆解/方法论 等）\",
+  \"keywords\": [\"关键词1\",\"关键词2\"]
+}
+
+输入：
+- 源标题：${SOURCE_TITLE}
+- 源链接：${URL}
+
+硬性规则：
+- title 不能包含 URL
+- title 不要出现‘深度解读/重磅/全网最全’这类营销词
+- 如果你拿不准事实，就把观点写成‘趋势/机制/取舍’而不是具体数字
+" > "$TITLE_JSON" && python3 - <<'PY'
+import json, os, re
+p=os.environ['TITLE_JSON']
+text=open(p,'r',encoding='utf-8').read()
+start=text.find('{')
+obj=json.loads(text[start:])
+new_title=(obj.get('title') or '').strip()
+source=os.environ.get('SOURCE_TITLE','').strip()
+# Fallbacks / guards
+if not new_title:
+    new_title = source
+if new_title == source:
+    new_title = new_title + '：我们真正该关注什么'
+# overly similar (simple heuristic)
+if len(new_title) >= 8 and len(source) >= 8:
+    a=set(re.findall(r"[\u4e00-\u9fff]{1,}|[a-z0-9]{2,}", new_title.lower()))
+    b=set(re.findall(r"[\u4e00-\u9fff]{1,}|[a-z0-9]{2,}", source.lower()))
+    j=len(a&b)/max(1,len(a|b))
+    if j>=0.75:
+        new_title = new_title + '（换个角度看）'
+print(new_title)
+PY
+) || TITLE="$SOURCE_TITLE"
+
+# expose to later steps
+export SOURCE_TITLE URL TITLE TITLE_JSON
 
 DATE_DIR=$(date +%Y%m%d)
 RUN_SUFFIX="${RUN_SUFFIX:-}"
@@ -83,7 +134,8 @@ export TOPIC_TEMPLATE
 WEB_RESEARCH_STATUS="ok"
 if ! bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 --json --message "你现在不是写文章，而是在做选题研究。请使用联网搜索，围绕下面这个主题补充 3-6 条高质量资料，优先官方来源、主流科技媒体、研究机构。
 
-主题：${TITLE}
+主题（二次选题标题）：${TITLE}
+源标题（仅供识别，不可照抄）：${SOURCE_TITLE}
 主参考链接：${URL}
 
 要求：
@@ -221,14 +273,52 @@ else:
 PY
 )
 
-# 2) Let HUGO write article (markdown) based on topic + source URL + RSS/web research materials — best effort.
+# 2) Let HUGO write article (markdown) based on secondary topic + web research — best effort.
 STAGE="drafting"
 ARTICLE_JSON="$OUT_DIR/hugo.json"
 ARTICLE_MD_RAW="$OUT_DIR/article_raw.md"
 ARTICLE_STATUS="generated"
 export ARTICLE_JSON ARTICLE_MD_RAW RESEARCH_JSON WEB_RESEARCH_JSON
 
-if ! bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 --json --message "请直接写一篇可发布到微信公众号的科技科普文章。\n\n主题：${TITLE}\n主参考链接（仅作为事实边界，不要编造具体数字）：${URL}\n\n${RESEARCH_BRIEF}\n\n硬性要求：\n- 最终输出必须是【可直接发表的正文 Markdown】\n- 不要输出任何写作说明、提示词、封面建议、编者按、备注、TODO、附加解释\n- 不要出现‘以下是文章’‘可直接发布’‘供你参考’之类的前言\n- 只输出文章本身\n- 不要只改写主参考链接，要综合 RSS 补充资料和外部 research，提炼更完整的背景、机制和产业语境\n- 如果外部 research 质量偏弱，就保守吸收，只把确定性高的内容写进正文\n- 如果补充资料与主参考链接角度不同，可以用于解释上下文，但不要编造它们没有明确支持的事实\n- 受众：懂一点科技的普通读者\n- ${ARTICLE_STRUCTURE}\n- 风格：口语但不油腻，信息密度高\n- 长度：1800-2400字\n- 文末加‘参考阅读’，至少包含主参考链接；若正文确实吸收了补充资料，也可列出 2-5 条最相关链接\n" > "$ARTICLE_JSON"; then
+THESIS=$(python3 - <<'PY'
+import json, os
+p=os.environ.get('TITLE_JSON','')
+if not p:
+    print('')
+    raise SystemExit(0)
+text=open(p,'r',encoding='utf-8').read()
+start=text.find('{')
+obj=json.loads(text[start:])
+print((obj.get('thesis') or '').strip())
+PY
+)
+
+if ! bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 --json --message "请直接写一篇可发布到微信公众号的科技科普文章（不要贴参考链接）。
+
+二次选题标题（必须用这个，不要用源标题）：${TITLE}
+文章核心观点（一句话，可写进开头）：${THESIS}
+源标题（禁止照抄/禁止做同义改写标题）：${SOURCE_TITLE}
+主参考链接（仅作为事实边界）：${URL}
+
+${RESEARCH_BRIEF}
+
+硬性要求（来自 Lambda）：
+1) 标题一定不能和源标题一样。
+2) 二次选题：在推荐标题基础上形成自己的观点（要写出明确判断/取舍）。
+3) 根据二次选题标题，再次收集信息完成文章：必须综合外部 research + RSS 候选池材料，不能只改写主参考链接。
+4) 推送到公众号的文章不必附加参考链接：不要在文末添加‘参考阅读/参考链接’段落，也不要在正文中放 URL。
+5) 封面图以标题为主（这一点你不用输出提示词）。
+6) 文内插图根据段落生成（这一点你不用输出提示词）。
+
+写作要求：
+- 最终输出必须是【可直接发表的正文 Markdown】
+- 不要输出任何写作说明、提示词、封面建议、编者按、备注、TODO、附加解释
+- 只输出文章本身
+- 受众：懂一点科技的普通读者
+- ${ARTICLE_STRUCTURE}
+- 风格：口语但不油腻，信息密度高
+- 长度：1800-2400字
+" > "$ARTICLE_JSON"; then
   ARTICLE_STATUS="reused"
 else
   if python3 - <<'PY'
@@ -237,15 +327,11 @@ article_json = pathlib.Path(os.environ['ARTICLE_JSON'])
 article_md_raw = pathlib.Path(os.environ['ARTICLE_MD_RAW'])
 content = article_json.read_text(encoding='utf-8')
 
-# openclaw agent output may include logs before the JSON payload
 start = content.find('{')
 if start == -1:
     raise SystemExit('No JSON object found in ' + str(article_json))
 obj = json.loads(content[start:])
 
-# Schema compatibility:
-# - Older: {"result": {"payloads": [{"text": "..."}]}}
-# - Current: {"payloads": [{"text": "..."}], "meta": {...}}
 text = ''
 if isinstance(obj, dict) and 'result' in obj and isinstance(obj.get('result'), dict):
     payloads = obj['result'].get('payloads') or []
@@ -259,6 +345,7 @@ elif isinstance(obj, dict) and 'payloads' in obj:
 if not text:
     raise KeyError(f"No text payload found. top_keys={list(obj.keys())}")
 
+# Strip common prefaces
 patterns = [
     r'^以下是.*?\n+',
     r'^下面是.*?\n+',
@@ -288,8 +375,13 @@ COVER_SRC="$OUT_DIR/cover_src.png"
 COVER_JPG="$OUT_DIR/cover.jpg"
 DEFAULT_COVER="${DEFAULT_WECHAT_COVER:-$HOME/.openclaw/workspace/dali_cover_notext_v2.png}"
 # Cover prompt can be overridden by nightly topic pack when available.
-COVER_PROMPT_DEFAULT="Clean modern editorial illustration cover for a Chinese tech article about AI agents and inference compute. Bright optimistic palette, clean bold outlines, cel shading, futuristic city datacenter + agent icons, lots of empty space, no text, no letters, no numbers, no signage, no logos, no UI panels"
+COVER_PROMPT_DEFAULT="Clean modern editorial illustration cover for a Chinese tech article. Bright optimistic palette, clean bold outlines, subtle sci‑fi, lots of empty space, no text, no letters, no numbers, no signage, no logos, no UI panels"
 COVER_PROMPT="$COVER_PROMPT_DEFAULT"
+
+# Prefer generating cover based on OUR final title
+if [[ -n "${TITLE:-}" ]]; then
+  COVER_PROMPT="Cover image for a Chinese WeChat tech article titled: ${TITLE}. Modern editorial illustration, symbolic scene matching the title, clean composition, generous whitespace, no text, no letters, no numbers, no logos, no watermarks"
+fi
 
 if [[ "${USE_NIGHTLY_PACK:-1}" == "1" ]] && [[ -f "${NIGHTLY_PACK_JSON:-rss/nightly_pack.json}" ]]; then
   PACK_COVER_PROMPT=$(python3 - <<'PY'

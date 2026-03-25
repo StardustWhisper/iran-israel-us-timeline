@@ -2,6 +2,7 @@
 set -euo pipefail
 
 # Nightly: scan RSS + build scored shortlist (AI/IT)
+# Sources: 保留原有信息源，并新增日语/韩语/俄语极客向 RSS
 # Outputs:
 #   workspace/rss/all-new.json
 #   workspace/rss/brief.json
@@ -28,6 +29,7 @@ blogwatcher scan >/dev/null
 
 # Collect NEW items from selected feeds (keep this list small & high-signal)
 BLOGS=(
+  # 原有信息源（保留）
   "36kr-tech"
   "infoq"
   "openai-news"
@@ -40,6 +42,23 @@ BLOGS=(
   "github-changelog"
   "hackernews"
   "v2ex-latest"
+
+  # 新增：日语极客/工程圈
+  "zenn-ai"
+  "zenn-sre"
+  "qiita-sre"
+  "qiita-kubernetes"
+  "hatena-hot-it"
+
+  # 新增：韩语极客/工程圈
+  "kakao-tech"
+  "line-tech-ko"
+  "naver-d2"
+
+  # 新增：俄语极客/工程圈
+  "habr-devops"
+  "habr-kubernetes"
+  "habr-ai"
 )
 
 TMP_DIR="rss/_tmp"
