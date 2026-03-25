@@ -805,14 +805,7 @@ PY
 )
 fi
 
-# 4b) Auto-cleanup: if later stages fail, delete the WeChat draft to avoid leaving broken drafts.
-# Enabled by Lambda.
-cleanup_wechat_draft() {
-  if [[ -n "${WECHAT_MEDIA_ID:-}" ]]; then
-    echo "CLEANUP: deleting wechat draft media_id=${WECHAT_MEDIA_ID}" >&2
-    python3 "$HOME/.openclaw/workspace/scripts/wechat_draft_delete.py" --media-id "$WECHAT_MEDIA_ID" >/dev/null 2>&1 || true
-  fi
-}
+# 4b) Auto-cleanup is handled by the global trap (see top of file)
 
 # 5) Sync to Notion for mobile reading — best effort; failure should not block WeChat draft delivery.
 STAGE="notion_sync"
@@ -839,6 +832,20 @@ export HALO_PUBLISH_LOG
 
 # Prefer raw md (no wechat frontmatter)
 if [[ "${HALO_ENABLE:-0}" == "1" ]] && [[ -n "${HALO_BASE_URL:-}" ]] && [[ -n "${HALO_TOKEN:-}" ]]; then
+  HALO_SYNC_STATUS="ok"
+  if ! python3 "$HOME/.openclaw/workspace/scripts/halo_publish_post.py" \
+    --md "$ARTICLE_MD_RAW" \
+    --category "公众号" \
+    --tag tech \
+    > "$HALO_PUBLISH_LOG"; then
+    HALO_SYNC_STATUS="failed"
+    echo "WARN: Halo publish failed; see $HALO_PUBLISH_LOG" >&2
+  fi
+fi
+
+STAGE="done"
+echo "MORNING_OK title=$TITLE url=$URL out=$OUT_DIR media_id=$WECHAT_MEDIA_ID web_research_status=$WEB_RESEARCH_STATUS article_status=$ARTICLE_STATUS cover_status=$COVER_STATUS notion_status=$NOTION_SYNC_STATUS halo_status=$HALO_SYNC_STATUS"
+0}" == "1" ]] && [[ -n "${HALO_BASE_URL:-}" ]] && [[ -n "${HALO_TOKEN:-}" ]]; then
   HALO_SYNC_STATUS="ok"
   if ! python3 "$HOME/.openclaw/workspace/scripts/halo_publish_post.py" \
     --md "$ARTICLE_MD_RAW" \
