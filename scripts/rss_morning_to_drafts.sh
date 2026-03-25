@@ -112,9 +112,7 @@ export SOURCE_TITLE URL TITLE TITLE_JSON
 # 1) Build research briefs so HUGO can synthesize, not merely rewrite the source link.
 STAGE="research"
 RESEARCH_JSON="$OUT_DIR/research.json"
-WEB_RESEARCH_RAW="$OUT_DIR/web_research_raw.json"
-WEB_RESEARCH_JSON="$OUT_DIR/web_research.json"
-export RESEARCH_JSON WEB_RESEARCH_RAW WEB_RESEARCH_JSON
+export RESEARCH_JSON
 
 python3 scripts/rss_topic_research.py \
   --title "$TITLE" \
@@ -131,55 +129,106 @@ PY
 )
 export TOPIC_TEMPLATE
 
-# 1a) Ask an agent to do lightweight web research and return STRICT JSON only — best effort.
+# 1a) Ask an agent to build "Claim Cards" (观点卡片) — best effort.
+# Goal: make the final article structurally NOT a paraphrase of the source.
 WEB_RESEARCH_STATUS="ok"
-if ! bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 --json --message "你现在不是写文章，而是在做选题研究。请使用联网搜索，围绕下面这个主题补充 3-6 条高质量资料，优先官方来源、主流科技媒体、研究机构。
+CLAIMS_RAW="$OUT_DIR/claims_raw.json"
+CLAIMS_JSON="$OUT_DIR/claims.json"
+export CLAIMS_RAW CLAIMS_JSON
 
-主题（二次选题标题）：${TITLE}
-源标题（仅供识别，不可照抄）：${SOURCE_TITLE}
-主参考链接：${URL}
+if ! bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 900 --json --message "你现在不是写文章，而是在搭建【观点卡片（Claim Cards）】。
 
-要求：
-- 目标：帮助后续写作，不要只重复主参考链接内容
-- 必须主动搜索并综合资料，补充背景、机制、行业语境、争议或误区
-- 只输出一个 JSON 对象，不要输出任何额外说明、markdown 代码块或前言
-- JSON 结构必须是：
+输入：
+- 二次选题标题：${TITLE}
+- 一句话观点（thesis）：$(python3 - <<'PY'
+import json, os
+p=os.environ.get('TITLE_JSON','')
+if p and os.path.exists(p):
+    t=open(p,'r',encoding='utf-8').read(); s=t.find('{'); obj=json.loads(t[s:])
+    if 'result' in obj and isinstance(obj.get('result'), dict):
+        payloads=obj['result'].get('payloads') or []
+        if payloads:
+            inner=(payloads[0].get('text') or '').strip(); i=inner.find('{')
+            if i!=-1:
+                try: obj=json.loads(inner[i:])
+                except: pass
+    print((obj.get('thesis') or '').strip())
+PY
+)
+- 源标题（仅供定位）：${SOURCE_TITLE}
+- 主参考链接（仅作为事实边界，可浏览但不要照抄）：${URL}
+
+任务：
+1) 联网搜索并阅读多方资料（尽量跨 2-3 个来源，允许多语种），把你准备在文中主张的观点拆成 8-12 张卡片。
+2) 每张卡片必须可写成一句“主张句”，并带 1-3 条证据来源（只做内部支撑，最终文章不要放链接）。
+3) 给出 3 个“原创结构件”，用于让文章明显不像新闻复述（例如：检查表、分层模型、决策树、对比表、上线守则）。
+
+只输出【严格 JSON】（不要 markdown，不要解释）：
 {
-  \"summary\": [\"要点1\", \"要点2\", \"要点3\"],
-  \"sources\": [
-    {\"title\": \"标题\", \"url\": \"链接\", \"type\": \"official|media|research|analysis\", \"note\": \"这条材料能补充什么\"}
+  \"topic\": \"${TITLE}\",
+  \"thesis\": \"一句话观点\",
+  \"cards\": [
+    {
+      \"claim\": \"可直接写进正文的一句话主张\",
+      \"confidence\": \"high|med|low\",
+      \"evidence\": [
+        {\"title\": \"来源标题\", \"url\": \"来源链接\", \"type\": \"official|media|research|analysis\", \"lang\": \"zh|en|ja|ko|ru|...\", \"note\": \"这条证据支持什么\"}
+      ]
+    }
   ],
-  \"angles\": [\"可展开角度1\", \"可展开角度2\"]
+  \"originalComponents\": [\"组件1\", \"组件2\", \"组件3\"],
+  \"antiParaphraseRules\": [\"规则1\", \"规则2\"]
 }
-- sources 字段里尽量不要重复主参考链接
-- 如果某条信息把握不大，就不要写进 summary
-" > "$WEB_RESEARCH_RAW"; then
+
+硬性要求：
+- cards 里至少 2 张卡片必须来自非中文来源（ja/ko/ru/en 均可）
+- 如果不确定就把 confidence 降到 low，low 的观点后续写作时不要当硬事实
+" > "$CLAIMS_RAW"; then
   WEB_RESEARCH_STATUS="failed"
-  export TITLE
-  python3 - <<'PY' > "$WEB_RESEARCH_JSON"
+  python3 - <<'PY' > "$CLAIMS_JSON"
 import json, os
 print(json.dumps({
-    'topic': os.environ['TITLE'],
+    'topic': os.environ.get('TITLE',''),
+    'thesis': '',
+    'cards': [],
+    'originalComponents': [],
+    'antiParaphraseRules': [],
     'qualityOk': False,
-    'summary': [],
-    'sources': [],
-    'angles': [],
 }, ensure_ascii=False, indent=2))
 PY
 else
-  python3 scripts/rss_web_research_normalize.py \
-    --in "$WEB_RESEARCH_RAW" \
-    --out "$WEB_RESEARCH_JSON" \
-    --title "$TITLE" \
-    --source-url "$URL"
+  # Normalize claims JSON: unwrap openclaw wrapper and keep only the inner object
+  python3 - <<'PY'
+import json, os, pathlib
+raw_path = pathlib.Path(os.environ['CLAIMS_RAW'])
+out_path = pathlib.Path(os.environ['CLAIMS_JSON'])
+text = raw_path.read_text(encoding='utf-8')
+start = text.find('{')
+obj = json.loads(text[start:])
+if 'result' in obj and isinstance(obj.get('result'), dict):
+    payloads = obj['result'].get('payloads') or []
+    if payloads:
+        inner = (max(payloads, key=lambda p: len((p.get('text') or '').strip())).get('text') or '').strip()
+        start2 = inner.find('{')
+        if start2 != -1:
+            obj = json.loads(inner[start2:])
+obj['qualityOk'] = bool(obj.get('cards'))
+out_path.write_text(json.dumps(obj, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+print('WROTE', str(out_path))
+PY
 fi
 
 RESEARCH_BRIEF=$(python3 - <<'PY'
 import json, os
 rss_p = os.path.expanduser(os.environ['RESEARCH_JSON'])
-web_p = os.path.expanduser(os.environ['WEB_RESEARCH_JSON'])
+claims_p = os.path.expanduser(os.environ.get('CLAIMS_JSON',''))
 rss = json.load(open(rss_p, 'r', encoding='utf-8'))
-web = json.load(open(web_p, 'r', encoding='utf-8'))
+claims = None
+if claims_p and os.path.exists(claims_p):
+    try:
+        claims = json.load(open(claims_p, 'r', encoding='utf-8'))
+    except Exception:
+        claims = None
 
 # Optional: nightly pack generated by HUGO at 23:00 (no web browsing).
 pack_path = os.path.expanduser(os.environ.get('NIGHTLY_PACK_JSON', 'rss/nightly_pack.json'))
@@ -242,19 +291,33 @@ if pack_item:
             if s:
                 lines.append(f"  - {s}")
 
-if web.get('summary') or web.get('sources') or web.get('angles'):
+if claims and (claims.get('cards') or claims.get('originalComponents') or claims.get('antiParaphraseRules')):
     lines.append('')
-    lines.append('外部 research 摘要（通过联网搜索整理，可用于补强文章深度）：')
-    lines.append(f"- 质量检查：{'通过' if web.get('qualityOk') else '偏弱，尽量保守写作'}")
-    for i, s in enumerate(web.get('summary') or [], 1):
-        lines.append(f"- 要点{i}：{s}")
-    if web.get('angles'):
-        lines.append('- 可展开角度：' + '；'.join(web.get('angles')))
-    for i, src in enumerate(web.get('sources') or [], 1):
-        lines.append(f"{i}. [{src.get('type','source')}] {src.get('title')} — {src.get('url')}")
-        note = (src.get('note') or '').strip()
-        if note:
-            lines.append(f"   用途：{note}")
+    lines.append('观点卡片（Claim Cards，来自联网搜索；写作时只用这些观点组织文章，避免复述源文）：')
+    lines.append(f"- 质量检查：{'通过' if claims.get('qualityOk') else '偏弱，写作要更保守'}")
+    if claims.get('thesis'):
+        lines.append(f"- 核心观点：{claims.get('thesis')}")
+    # show cards (without flooding)
+    cards = claims.get('cards') or []
+    for i, c in enumerate(cards[:10], 1):
+        claim = (c.get('claim') or '').strip()
+        conf = (c.get('confidence') or '').strip()
+        if claim:
+            lines.append(f"- 卡片{i}({conf}): {claim}")
+    comps = claims.get('originalComponents') or []
+    if comps:
+        lines.append('- 原创结构件（必须落到正文）：')
+        for s in comps[:6]:
+            s = str(s).strip()
+            if s:
+                lines.append(f"  - {s}")
+    rules = claims.get('antiParaphraseRules') or []
+    if rules:
+        lines.append('- 反复述规则：')
+        for s in rules[:6]:
+            s = str(s).strip()
+            if s:
+                lines.append(f"  - {s}")
 
 print('\\n'.join(lines))
 PY
@@ -279,7 +342,7 @@ STAGE="drafting"
 ARTICLE_JSON="$OUT_DIR/hugo.json"
 ARTICLE_MD_RAW="$OUT_DIR/article_raw.md"
 ARTICLE_STATUS="generated"
-export ARTICLE_JSON ARTICLE_MD_RAW RESEARCH_JSON WEB_RESEARCH_JSON
+export ARTICLE_JSON ARTICLE_MD_RAW RESEARCH_JSON CLAIMS_JSON
 
 THESIS=$(python3 - <<'PY'
 import json, os
@@ -306,19 +369,24 @@ print((obj.get('thesis') or '').strip())
 PY
 )
 
-if ! bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 600 --json --message "请直接写一篇可发布到微信公众号的科技科普文章（不要贴参考链接）。
+if ! bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 900 --json --message "请直接写一篇可发布到微信公众号的科技科普文章（不要贴参考链接）。
 
 二次选题标题（必须用这个，不要用源标题）：${TITLE}
 文章核心观点（一句话，可写进开头）：${THESIS}
 源标题（禁止照抄/禁止做同义改写标题）：${SOURCE_TITLE}
-主参考链接（仅作为事实边界）：${URL}
+主参考链接（仅作为事实边界，不要按其段落顺序复述）：${URL}
 
 ${RESEARCH_BRIEF}
+
+关键要求：
+- 你写作时【只允许】使用“观点卡片（Claim Cards）”组织正文的论述；不要复述源文章段落顺序。
+- 正文必须显式包含至少 3 个“原创结构件”（检查表/分层模型/决策树/对比表/上线守则等），并且要能让读者照着执行。
+- 必须包含 1 段“读者任务”（让读者回到自己系统/团队，做一个小的可执行动作）。
 
 硬性要求（来自 Lambda）：
 1) 标题一定不能和源标题一样。
 2) 二次选题：在推荐标题基础上形成自己的观点（要写出明确判断/取舍）。
-3) 根据二次选题标题，再次收集信息完成文章：必须综合外部 research + RSS 候选池材料，不能只改写主参考链接。
+3) 根据二次选题标题，再次收集信息完成文章：必须综合多方资料，不要只改写主参考链接。
 4) 推送到公众号的文章不必附加参考链接：不要在文末添加‘参考阅读/参考链接’段落，也不要在正文中放 URL。
 5) 封面图以标题为主（这一点你不用输出提示词）。
 6) 文内插图根据段落生成（这一点你不用输出提示词）。
