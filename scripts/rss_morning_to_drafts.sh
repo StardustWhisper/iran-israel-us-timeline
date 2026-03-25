@@ -590,7 +590,8 @@ if 'result' in obj and isinstance(obj.get('result'), dict):
 figs = obj.get('figures') or []
 figs = figs[:fig_n]
 if not figs:
-    raise SystemExit('no figures')
+    print('FIG_SKIP 0')
+    raise SystemExit(0)
 
 # Read markdown
 text = md_path.read_text(encoding='utf-8')
