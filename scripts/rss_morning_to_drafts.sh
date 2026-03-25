@@ -52,12 +52,18 @@ print(d['top']['url'])
 PY
 )
 
+DATE_DIR=$(date +%Y%m%d)
+RUN_SUFFIX="${RUN_SUFFIX:-}"
+OUT_DIR="$HOME/.openclaw/workspace/wechat-publisher-out/auto/$DATE_DIR${RUN_SUFFIX}"
+mkdir -p "$OUT_DIR"
+
 # 0) Generate our OWN publishable title + viewpoint (must NOT equal source title)
 # Requirements (per Lambda):
 # - Title must differ from the source title
 # - Do secondary topic selection: form a clear viewpoint based on the recommended topic
 STAGE="title"
 TITLE_JSON="$OUT_DIR/title.json"
+export SOURCE_TITLE URL
 TITLE=$(bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 300 --json --message "你现在做【二次选题】。我会给你：源标题 + 源链接 + 目标平台（公众号）。
 
 请输出【严格 JSON 对象】（不要 markdown、不要前后解释）：
@@ -102,11 +108,6 @@ PY
 
 # expose to later steps
 export SOURCE_TITLE URL TITLE TITLE_JSON
-
-DATE_DIR=$(date +%Y%m%d)
-RUN_SUFFIX="${RUN_SUFFIX:-}"
-OUT_DIR="$HOME/.openclaw/workspace/wechat-publisher-out/auto/$DATE_DIR${RUN_SUFFIX}"
-mkdir -p "$OUT_DIR"
 
 # 1) Build research briefs so HUGO can synthesize, not merely rewrite the source link.
 STAGE="research"
