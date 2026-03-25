@@ -598,19 +598,27 @@ fi
 MAX_REVISIONS="${MAX_REVISIONS:-3}"
 export MAX_REVISIONS
 
-get_editor_fields() {
-  python3 - <<'PY'
-import json, os
-j=json.load(open(os.environ['EDITOR_JSON'],'r',encoding='utf-8'))
-print('PASS=' + ('1' if j.get('pass') else '0'))
-print('SCORE=' + str(int(j.get('score') or 0)))
-print('BRIEF=' + (j.get('rewriteBrief') or '').strip().replace('\n',' '))
-PY
-}
-
 rev=0
 while true; do
-  eval "$(get_editor_fields)"
+  PASS=$(python3 - <<'PY'
+import json, os
+j=json.load(open(os.environ['EDITOR_JSON'],'r',encoding='utf-8'))
+print('1' if j.get('pass') else '0')
+PY
+)
+  SCORE=$(python3 - <<'PY'
+import json, os
+j=json.load(open(os.environ['EDITOR_JSON'],'r',encoding='utf-8'))
+print(int(j.get('score') or 0))
+PY
+)
+  BRIEF=$(python3 - <<'PY'
+import json, os
+j=json.load(open(os.environ['EDITOR_JSON'],'r',encoding='utf-8'))
+print((j.get('rewriteBrief') or '').strip().replace('\n',' '))
+PY
+)
+
   if [[ "$PASS" == "1" && "$SCORE" -ge "$EDITOR_THRESHOLD" ]]; then
     break
   fi
