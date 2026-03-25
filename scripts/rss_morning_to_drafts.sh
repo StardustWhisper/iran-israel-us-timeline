@@ -497,6 +497,31 @@ p.write_text('\n'.join(lines).strip() + '\n', encoding='utf-8')
 print('TITLE_OK')
 PY
 
+# 2b) Sanity check: never publish placeholder / too-short drafts
+STAGE="sanity_check"
+python3 - <<'PY'
+import os, pathlib, re
+p = pathlib.Path(os.environ['ARTICLE_MD_RAW'])
+text = p.read_text(encoding='utf-8')
+plain = re.sub(r'```.*?```', '', text, flags=re.S)
+plain = re.sub(r'!\[[^\]]*\]\([^\)]*\)', '', plain)
+plain = re.sub(r'\s+', ' ', plain).strip()
+# hard blocks
+bad = [
+  'Uh-oh, too much information',
+  'sometimes less is more',
+]
+if any(b.lower() in plain.lower() for b in bad):
+    raise SystemExit('bad_placeholder')
+# minimum length (approx)
+if len(plain) < 2500:
+    raise SystemExit('too_short')
+# should have some structure
+if plain.count('##') == 0 and text.count('##') == 0:
+    raise SystemExit('no_sections')
+print('SANITY_OK')
+PY
+
 # 3) Generate in-article figures based on sections (best effort; do not block publish)
 STAGE="figures"
 FIGURE_STATUS="skipped"
