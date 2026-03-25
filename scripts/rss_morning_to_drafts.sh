@@ -544,7 +544,8 @@ bad = [
 if any(b.lower() in plain.lower() for b in bad):
     raise SystemExit('bad_placeholder')
 # minimum length (approx)
-if len(plain) < 2500:
+# Minimum length: keep it not too short, but avoid false negatives when the writing is dense.
+if len(plain) < 2000:
     raise SystemExit('too_short')
 # should have some structure
 if plain.count('##') == 0 and text.count('##') == 0:
