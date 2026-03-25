@@ -527,7 +527,142 @@ p.write_text('\n'.join(lines).strip() + '\n', encoding='utf-8')
 print('TITLE_OK')
 PY
 
-# 2b) Sanity check: never publish placeholder / too-short drafts
+# 2b) Editor gate (LINUS by default): review and request one revision if needed
+STAGE="edit_review"
+EDITOR_AGENT="${EDITOR_AGENT:-linus}"
+EDITOR_THRESHOLD="${EDITOR_THRESHOLD:-80}"
+EDITOR_SESSION_ID="${HUGO_SESSION_ID}:editor"
+EDITOR_JSON="$OUT_DIR/editor.json"
+EDITOR_RAW="$OUT_DIR/editor_raw.json"
+export EDITOR_AGENT EDITOR_THRESHOLD EDITOR_SESSION_ID EDITOR_JSON EDITOR_RAW
+
+ARTICLE_TEXT=$(python3 - <<'PY'
+import os, pathlib
+p=pathlib.Path(os.environ['ARTICLE_MD_RAW'])
+text=p.read_text(encoding='utf-8')
+# cap for prompt size safety
+print(text[:12000])
+PY
+)
+
+if bash scripts/openclaw_cli.sh agent --agent "$EDITOR_AGENT" --session-id "$EDITOR_SESSION_ID" --to +15555550123 --timeout 600 --json --message "你现在是【公众号文章编辑/审稿人】。你不写文章，只审稿并给出修改意见。
+
+文章二次标题：${TITLE}
+源链接（仅用于判断是否雷同，不要输出链接到正文）：${URL}
+
+正文（Markdown）：
+${ARTICLE_TEXT}
+
+请输出【严格 JSON】（不要 markdown，不要解释）：
+{
+  \"pass\": true,
+  \"score\": 0,
+  \"mustFix\": [\"必须修改点1\"],
+  \"niceToHave\": [\"可选优化1\"],
+  \"riskFlags\": [\"paraphrase\", \"templatey\", \"too_short\", \"logic_gap\", \"marketingy\"],
+  \"rewriteBrief\": \"给作者(写作模型)的改稿指令，要求具体可执行\"
+}
+
+审稿重点：
+- 是否像“改写新闻/复述源文”（段落顺序、措辞、信息组织）
+- 标题和二级标题是否模板化
+- 是否满足：≥3个原创结构件 + 读者任务
+- 文内不得出现 URL/参考链接
+- 逻辑是否完整、信息密度是否够、是否有可执行清单
+" > "$EDITOR_RAW"; then
+  python3 - <<'PY'
+import json, os, pathlib
+raw = pathlib.Path(os.environ['EDITOR_RAW']).read_text(encoding='utf-8')
+start=raw.find('{')
+obj=json.loads(raw[start:])
+if 'result' in obj and isinstance(obj.get('result'), dict):
+    payloads=obj['result'].get('payloads') or []
+    if payloads:
+        t=max(payloads, key=lambda p: len((p.get('text') or '').strip())).get('text') or ''
+        t=t.strip(); s=t.find('{')
+        if s!=-1:
+            obj=json.loads(t[s:])
+path=pathlib.Path(os.environ['EDITOR_JSON'])
+path.write_text(json.dumps(obj, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+print('WROTE', str(path))
+PY
+else
+  # If editor fails, do not block publish; just skip the gate.
+  python3 - <<'PY' > "$EDITOR_JSON"
+import json
+print(json.dumps({'pass': True, 'score': 100, 'mustFix': [], 'niceToHave': [], 'riskFlags': [], 'rewriteBrief': ''}, ensure_ascii=False, indent=2))
+PY
+fi
+
+# Apply at most one revision
+EDITOR_PASS=$(python3 - <<'PY'
+import json, os
+j=json.load(open(os.environ['EDITOR_JSON'],'r',encoding='utf-8'))
+print('1' if j.get('pass') else '0')
+PY
+)
+EDITOR_SCORE=$(python3 - <<'PY'
+import json, os
+j=json.load(open(os.environ['EDITOR_JSON'],'r',encoding='utf-8'))
+print(int(j.get('score') or 0))
+PY
+)
+REWRITE_BRIEF=$(python3 - <<'PY'
+import json, os
+j=json.load(open(os.environ['EDITOR_JSON'],'r',encoding='utf-8'))
+print((j.get('rewriteBrief') or '').strip())
+PY
+)
+
+if [[ "$EDITOR_PASS" != "1" || "$EDITOR_SCORE" -lt "$EDITOR_THRESHOLD" ]]; then
+  STAGE="edit_revise"
+  if [[ -n "$REWRITE_BRIEF" ]]; then
+    if bash scripts/openclaw_cli.sh agent --agent hugo --session-id "$HUGO_SESSION_ID" --to +15555550123 --timeout 900 --json --message "你现在要按编辑意见改稿（只改一版）。
+
+二次选题标题：${TITLE}
+编辑改稿指令：${REWRITE_BRIEF}
+
+要求：
+- 保留原标题（必须是二次标题）
+- 不要出现 URL/参考链接
+- 仍需：≥3个原创结构件 + 读者任务
+- 改完后输出完整 Markdown 正文（不要解释）
+
+原稿如下：
+${ARTICLE_TEXT}
+" > "$ARTICLE_JSON"; then
+      echo "WARN: revision failed; keep original draft" >&2
+    else
+      python3 - <<'PY'
+import json, pathlib, os, re
+article_json = pathlib.Path(os.environ['ARTICLE_JSON'])
+article_md_raw = pathlib.Path(os.environ['ARTICLE_MD_RAW'])
+content = article_json.read_text(encoding='utf-8')
+start = content.find('{')
+obj = json.loads(content[start:])
+text = ''
+if isinstance(obj, dict) and 'result' in obj and isinstance(obj.get('result'), dict):
+    payloads = obj['result'].get('payloads') or []
+    if payloads:
+        best=max(payloads, key=lambda p: len((p.get('text') or '').strip()))
+        text=(best.get('text') or '').strip()
+elif isinstance(obj, dict) and 'payloads' in obj:
+    payloads=obj.get('payloads') or []
+    if payloads:
+        best=max(payloads, key=lambda p: len((p.get('text') or '').strip()))
+        text=(best.get('text') or '').strip()
+if text:
+    # strip common prefaces
+    for pat in [r'^以下是.*?\n+', r'^下面是.*?\n+', r'^当然可以.*?\n+']:
+        text=re.sub(pat,'',text,flags=re.S)
+    article_md_raw.write_text(text.strip()+'\n', encoding='utf-8')
+    print('WROTE', str(article_md_raw))
+PY
+    fi
+  fi
+fi
+
+# 2c) Sanity check: never publish placeholder / too-short drafts
 STAGE="sanity_check"
 python3 - <<'PY'
 import os, pathlib, re
@@ -544,7 +679,6 @@ bad = [
 if any(b.lower() in plain.lower() for b in bad):
     raise SystemExit('bad_placeholder')
 # minimum length (approx)
-# Minimum length: keep it not too short, but avoid false negatives when the writing is dense.
 if len(plain) < 2000:
     raise SystemExit('too_short')
 # should have some structure
