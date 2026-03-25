@@ -61,10 +61,14 @@ mkdir -p "$OUT_DIR"
 # Requirements (per Lambda):
 # - Title must differ from the source title
 # - Do secondary topic selection: form a clear viewpoint based on the recommended topic
+# Use a per-run session id to avoid Hugo session lock / cross-run contamination
+HUGO_SESSION_ID="rss-morning:${DATE_DIR}${RUN_SUFFIX}"
+export HUGO_SESSION_ID
+
 STAGE="title"
 TITLE_JSON="$OUT_DIR/title.json"
 export SOURCE_TITLE URL TITLE_JSON
-TITLE=$(bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 300 --json --message "你现在做【二次选题】。我会给你：源标题 + 源链接 + 目标平台（公众号）。
+TITLE=$(bash scripts/openclaw_cli.sh agent --agent hugo --session-id "$HUGO_SESSION_ID" --to +15555550123 --timeout 300 --json --message "你现在做【二次选题】。我会给你：源标题 + 源链接 + 目标平台（公众号）。
 
 请输出【严格 JSON 对象】（不要 markdown、不要前后解释）：
 {
@@ -170,7 +174,7 @@ PY
 # Try twice; sometimes the agent returns an empty payload list.
 CLAIMS_OK=0
 for attempt in 1 2; do
-  if bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 900 --json --message "你现在不是写文章，而是在搭建【观点卡片（Claim Cards）】。
+  if bash scripts/openclaw_cli.sh agent --agent hugo --session-id "$HUGO_SESSION_ID" --to +15555550123 --timeout 900 --json --message "你现在不是写文章，而是在搭建【观点卡片（Claim Cards）】。
 
 输入：
 - 二次选题标题：${TITLE}
@@ -377,7 +381,7 @@ print((obj.get('thesis') or '').strip())
 PY
 )
 
-if ! bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 900 --json --message "请直接写一篇可发布到微信公众号的科技科普文章（不要贴参考链接）。
+if ! bash scripts/openclaw_cli.sh agent --agent hugo --session-id "$HUGO_SESSION_ID" --to +15555550123 --timeout 900 --json --message "请直接写一篇可发布到微信公众号的科技科普文章（不要贴参考链接）。
 
 二次选题标题（必须用这个，不要用源标题）：${TITLE}
 文章核心观点（一句话，可写进开头）：${THESIS}
@@ -551,7 +555,7 @@ PY
 )
 
 # Ask HUGO to generate image prompts (STRICT JSON)
-if bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 300 --json --message "你现在只做【配图提示词】生成，不写文章。
+if bash scripts/openclaw_cli.sh agent --agent hugo --session-id "$HUGO_SESSION_ID" --to +15555550123 --timeout 300 --json --message "你现在只做【配图提示词】生成，不写文章。
 
 文章标题：${TITLE}
 请基于下面的分段信息，为公众号文章生成 ${FIGURE_COUNT} 张【文内插图】提示词。
