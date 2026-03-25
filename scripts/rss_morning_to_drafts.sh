@@ -19,6 +19,8 @@ WECHAT_MEDIA_ID=""
 
 on_error() {
   local exit_code=$?
+  # best-effort cleanup to avoid leaving broken drafts in WeChat
+  cleanup_wechat_draft || true
   echo "MORNING_FAIL stage=$STAGE web_research_status=$WEB_RESEARCH_STATUS article_status=$ARTICLE_STATUS cover_status=$COVER_STATUS notion_status=$NOTION_SYNC_STATUS media_id=$WECHAT_MEDIA_ID" >&2
   exit "$exit_code"
 }
@@ -802,6 +804,15 @@ print(m.group(1) if m else '')
 PY
 )
 fi
+
+# 4b) Auto-cleanup: if later stages fail, delete the WeChat draft to avoid leaving broken drafts.
+# Enabled by Lambda.
+cleanup_wechat_draft() {
+  if [[ -n "${WECHAT_MEDIA_ID:-}" ]]; then
+    echo "CLEANUP: deleting wechat draft media_id=${WECHAT_MEDIA_ID}" >&2
+    python3 "$HOME/.openclaw/workspace/scripts/wechat_draft_delete.py" --media-id "$WECHAT_MEDIA_ID" >/dev/null 2>&1 || true
+  fi
+}
 
 # 5) Sync to Notion for mobile reading — best effort; failure should not block WeChat draft delivery.
 STAGE="notion_sync"
