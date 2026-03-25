@@ -63,7 +63,7 @@ mkdir -p "$OUT_DIR"
 # - Do secondary topic selection: form a clear viewpoint based on the recommended topic
 STAGE="title"
 TITLE_JSON="$OUT_DIR/title.json"
-export SOURCE_TITLE URL
+export SOURCE_TITLE URL TITLE_JSON
 TITLE=$(bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 300 --json --message "你现在做【二次选题】。我会给你：源标题 + 源链接 + 目标平台（公众号）。
 
 请输出【严格 JSON 对象】（不要 markdown、不要前后解释）：
@@ -284,12 +284,24 @@ export ARTICLE_JSON ARTICLE_MD_RAW RESEARCH_JSON WEB_RESEARCH_JSON
 THESIS=$(python3 - <<'PY'
 import json, os
 p=os.environ.get('TITLE_JSON','')
-if not p:
+if not p or not os.path.exists(p):
     print('')
     raise SystemExit(0)
 text=open(p,'r',encoding='utf-8').read()
 start=text.find('{')
 obj=json.loads(text[start:])
+# unwrap openclaw agent wrapper
+if 'result' in obj and isinstance(obj.get('result'), dict):
+    payloads = obj['result'].get('payloads') or []
+    if payloads:
+        t = (payloads[0].get('text') or '').strip()
+        start2 = t.find('{')
+        if start2 != -1:
+            try:
+                inner = json.loads(t[start2:])
+                obj = inner
+            except Exception:
+                pass
 print((obj.get('thesis') or '').strip())
 PY
 )
