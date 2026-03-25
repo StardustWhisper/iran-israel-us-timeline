@@ -382,7 +382,215 @@ PY
   fi
 fi
 
-# 2) Generate a cover image via DALI — best effort; fallback to default cover instead of blocking publish.
+# 2) Enforce final H1 title must be our secondary title (and must not equal source title)
+STAGE="title_enforce"
+python3 - <<'PY'
+import os, pathlib, re
+p = pathlib.Path(os.environ['ARTICLE_MD_RAW'])
+text = p.read_text(encoding='utf-8').strip('\n')
+lines = text.splitlines()
+our_title = (os.environ.get('TITLE') or '').strip()
+source_title = (os.environ.get('SOURCE_TITLE') or '').strip()
+if not our_title:
+    raise SystemExit(0)
+# Ensure our title differs from source
+if our_title == source_title:
+    our_title = our_title + '：我们真正该关注什么'
+
+# Replace first H1 if present, otherwise prepend
+idx = None
+for i, ln in enumerate(lines[:40]):
+    if re.match(r'^#\s+\S', ln):
+        idx = i
+        break
+
+new_h1 = '# ' + our_title
+if idx is None:
+    lines = [new_h1, ''] + lines
+else:
+    lines[idx] = new_h1
+
+p.write_text('\n'.join(lines).strip() + '\n', encoding='utf-8')
+print('TITLE_OK')
+PY
+
+# 3) Generate in-article figures based on sections (best effort; do not block publish)
+STAGE="figures"
+FIGURE_STATUS="skipped"
+FIGURE_COUNT="${FIGURE_COUNT:-3}"
+FIGURE_PLAN_JSON="$OUT_DIR/figure_plan.json"
+export OUT_DIR FIGURE_COUNT FIGURE_PLAN_JSON
+
+# Extract candidate sections (## headings + first paragraph) for prompt generation
+SECTIONS_TXT=$(python3 - <<'PY'
+import os, pathlib, re
+p = pathlib.Path(os.environ['ARTICLE_MD_RAW'])
+text = p.read_text(encoding='utf-8')
+lines = text.splitlines()
+sections=[]
+cur=None
+buf=[]
+for ln in lines:
+    m=re.match(r'^##\s+(.+)', ln)
+    if m:
+        if cur:
+            cur['body']='\n'.join(buf).strip()
+            sections.append(cur)
+        cur={'heading':m.group(1).strip()}
+        buf=[]
+    else:
+        if cur is not None:
+            buf.append(ln)
+if cur:
+    cur['body']='\n'.join(buf).strip()
+    sections.append(cur)
+
+def first_para(md):
+    # naive: first non-empty paragraph without headings/code
+    md=re.sub(r'```.*?```','',md,flags=re.S)
+    parts=[p.strip() for p in re.split(r'\n\s*\n', md) if p.strip()]
+    for p in parts:
+        if p.startswith('#') or p.startswith('![') or p.startswith('![]'):
+            continue
+        return re.sub(r'\s+',' ',p)[:220]
+    return ''
+
+out=[]
+for s in sections:
+    fp=first_para(s.get('body',''))
+    if s['heading'] and fp:
+        out.append((s['heading'], fp))
+
+# fallback: no ## headings => use generic prompts
+if not out:
+    out=[('核心机制', '用一张图讲清核心机制与关键关系'),('落地路径', '用一张图讲清落地流程和关键节点'),('常见误区', '用一张图对比常见误区与正确做法')]
+
+# print as numbered plain text
+for i,(h,fp) in enumerate(out[:6],1):
+    print(f"{i}) {h}\n   {fp}")
+PY
+)
+
+# Ask HUGO to generate image prompts (STRICT JSON)
+if bash scripts/openclaw_cli.sh agent --agent hugo --to +15555550123 --timeout 300 --json --message "你现在只做【配图提示词】生成，不写文章。
+
+文章标题：${TITLE}
+请基于下面的分段信息，为公众号文章生成 ${FIGURE_COUNT} 张【文内插图】提示词。
+
+分段信息（每段：小标题 + 该段第一段内容摘要）：
+${SECTIONS_TXT}
+
+输出【严格 JSON】（不要 markdown）：
+{
+  \"figures\": [
+    {
+      \"index\": 1,
+      \"afterHeading\": \"对应要插入在哪个二级标题(##)之后的标题文本\",
+      \"prompt\": \"英文或中文都行，但必须清晰具体；必须强调无文字/无logo/无标识；画面要能支撑该段内容\"
+    }
+  ]
+}
+
+硬性要求：
+- 每个 prompt 必须包含：no text, no letters, no numbers, no logo, no watermark
+- 风格：干净的 editorial illustration / simplified diagram feel（但不要真的画可读文字）
+- 构图：留白多、信息表达强
+" > "$FIGURE_PLAN_JSON"; then
+  # Generate images and inject into markdown
+  if python3 - <<'PY'
+import json, os, pathlib, re, subprocess
+out_dir = pathlib.Path(os.environ['OUT_DIR'])
+md_path = pathlib.Path(os.environ['ARTICLE_MD_RAW'])
+plan_path = pathlib.Path(os.environ['FIGURE_PLAN_JSON'])
+fig_n = int(os.environ.get('FIGURE_COUNT','3'))
+
+raw = plan_path.read_text(encoding='utf-8')
+start = raw.find('{')
+obj = json.loads(raw[start:])
+# unwrap openclaw wrapper
+if 'result' in obj and isinstance(obj.get('result'), dict):
+    payloads = obj['result'].get('payloads') or []
+    if payloads:
+        t = (payloads[0].get('text') or '').strip()
+        start2 = t.find('{')
+        if start2 != -1:
+            obj = json.loads(t[start2:])
+
+figs = obj.get('figures') or []
+figs = figs[:fig_n]
+if not figs:
+    raise SystemExit('no figures')
+
+# Read markdown
+text = md_path.read_text(encoding='utf-8')
+lines = text.splitlines()
+
+# helper: insert after a matching ## heading
+inserts=[]  # (line_index, markdown_line)
+for f in figs:
+    idx = int(f.get('index') or 0)
+    after = (f.get('afterHeading') or '').strip()
+    prompt = (f.get('prompt') or '').strip()
+    if not prompt:
+        continue
+    # enforce safety suffix
+    if 'no text' not in prompt.lower():
+        prompt += ' -- no text, no letters, no numbers, no logo, no watermark'
+
+    png = out_dir / f"fig_{idx}.png"
+    jpg = out_dir / f"fig_{idx}.jpg"
+
+    cmd = [
+        'bash', os.path.expanduser('~/.openclaw/workspace-dali/scripts/grok2api_image.sh'),
+        'generate', '--model', 'grok-imagine-1.0', '--size', '1280x720', '--prompt', prompt, '--out', str(png)
+    ]
+    subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    # convert to jpg for consistent upload
+    subprocess.check_call(['ffmpeg','-y','-i',str(png),'-q:v','2',str(jpg)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    # find insertion point
+    insert_at = None
+    if after:
+        for i,ln in enumerate(lines):
+            m=re.match(r'^##\s+(.+)', ln)
+            if m and m.group(1).strip() == after:
+                insert_at = i+1
+                break
+    if insert_at is None:
+        # fallback: after first ##
+        for i,ln in enumerate(lines):
+            if ln.startswith('## '):
+                insert_at = i+1
+                break
+    if insert_at is None:
+        # fallback: after H1
+        for i,ln in enumerate(lines):
+            if ln.startswith('# '):
+                insert_at = i+1
+                break
+    if insert_at is None:
+        insert_at = 0
+
+    inserts.append((insert_at, f"\n![](./{jpg.name})\n"))
+
+# Apply inserts in reverse order
+for at, md in sorted(inserts, key=lambda x:x[0], reverse=True):
+    lines[at:at] = [md]
+
+md_path.write_text('\n'.join(lines).strip() + '\n', encoding='utf-8')
+print('FIG_OK', len(inserts))
+PY
+  then
+    FIGURE_STATUS="ok"
+  else
+    FIGURE_STATUS="failed"
+  fi
+else
+  FIGURE_STATUS="failed"
+fi
+
+# 4) Generate a cover image via DALI — best effort; fallback to default cover instead of blocking publish.
 STAGE="cover"
 COVER_SRC="$OUT_DIR/cover_src.png"
 COVER_JPG="$OUT_DIR/cover.jpg"
