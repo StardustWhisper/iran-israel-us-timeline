@@ -17,6 +17,14 @@ COVER_STATUS="pending"
 NOTION_SYNC_STATUS="pending"
 WECHAT_MEDIA_ID=""
 
+# cleanup helper must be defined BEFORE trap
+cleanup_wechat_draft() {
+  if [[ -n "${WECHAT_MEDIA_ID:-}" ]]; then
+    echo "CLEANUP: deleting wechat draft media_id=${WECHAT_MEDIA_ID}" >&2
+    python3 "$HOME/.openclaw/workspace/scripts/wechat_draft_delete.py" --media-id "$WECHAT_MEDIA_ID" >/dev/null 2>&1 || true
+  fi
+}
+
 on_error() {
   local exit_code=$?
   # best-effort cleanup to avoid leaving broken drafts in WeChat
