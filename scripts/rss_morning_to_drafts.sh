@@ -845,17 +845,3 @@ fi
 
 STAGE="done"
 echo "MORNING_OK title=$TITLE url=$URL out=$OUT_DIR media_id=$WECHAT_MEDIA_ID web_research_status=$WEB_RESEARCH_STATUS article_status=$ARTICLE_STATUS cover_status=$COVER_STATUS notion_status=$NOTION_SYNC_STATUS halo_status=$HALO_SYNC_STATUS"
-0}" == "1" ]] && [[ -n "${HALO_BASE_URL:-}" ]] && [[ -n "${HALO_TOKEN:-}" ]]; then
-  HALO_SYNC_STATUS="ok"
-  if ! python3 "$HOME/.openclaw/workspace/scripts/halo_publish_post.py" \
-    --md "$ARTICLE_MD_RAW" \
-    --category "公众号" \
-    --tag tech \
-    > "$HALO_PUBLISH_LOG"; then
-    HALO_SYNC_STATUS="failed"
-    echo "WARN: Halo publish failed; see $HALO_PUBLISH_LOG" >&2
-  fi
-fi
-
-STAGE="done"
-echo "MORNING_OK title=$TITLE url=$URL out=$OUT_DIR media_id=$WECHAT_MEDIA_ID web_research_status=$WEB_RESEARCH_STATUS article_status=$ARTICLE_STATUS cover_status=$COVER_STATUS notion_status=$NOTION_SYNC_STATUS halo_status=$HALO_SYNC_STATUS"
