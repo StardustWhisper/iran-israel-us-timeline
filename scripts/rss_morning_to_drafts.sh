@@ -761,8 +761,12 @@ for i,(h,fp) in enumerate(out[:6],1):
 PY
 )
 
-# Ask HUGO to generate image prompts (STRICT JSON)
-if bash scripts/openclaw_cli.sh agent --agent hugo --session-id "$HUGO_SESSION_ID" --to +15555550123 --timeout 300 --json --message "你现在只做【配图提示词】生成，不写文章。
+# Ask an agent to generate image prompts (STRICT JSON)
+FIGURE_AGENT="${FIGURE_AGENT:-linus}"
+FIGURE_SESSION_ID="${HUGO_SESSION_ID}:figures"
+export FIGURE_AGENT FIGURE_SESSION_ID
+
+if bash scripts/openclaw_cli.sh agent --agent "$FIGURE_AGENT" --session-id "$FIGURE_SESSION_ID" --to +15555550123 --timeout 300 --json --message "你现在只做【配图提示词】生成，不写文章。
 
 文章标题：${TITLE}
 请基于下面的分段信息，为公众号文章生成 ${FIGURE_COUNT} 张【文内插图】提示词。
