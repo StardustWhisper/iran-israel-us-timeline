@@ -76,9 +76,11 @@ HUGO_SESSION_ID="rss-morning:${DATE_DIR}${RUN_SUFFIX}"
 export HUGO_SESSION_ID
 
 STAGE="title"
+TITLE_AGENT="${TITLE_AGENT:-linus}"
+TITLE_SESSION_ID="${HUGO_SESSION_ID}:title"
 TITLE_JSON="$OUT_DIR/title.json"
-export SOURCE_TITLE URL TITLE_JSON
-TITLE=$(bash scripts/openclaw_cli.sh agent --agent hugo --session-id "$HUGO_SESSION_ID" --to +15555550123 --timeout 300 --json --message "你现在做【二次选题】。我会给你：源标题 + 源链接 + 目标平台（公众号）。
+export SOURCE_TITLE URL TITLE_JSON TITLE_AGENT TITLE_SESSION_ID
+TITLE=$(bash scripts/openclaw_cli.sh agent --agent "$TITLE_AGENT" --session-id "$TITLE_SESSION_ID" --to +15555550123 --timeout 300 --json --message "你现在做【二次选题】。我会给你：源标题 + 源链接 + 目标平台（公众号）。
 
 请输出【严格 JSON 对象】（不要 markdown、不要前后解释）：
 {
