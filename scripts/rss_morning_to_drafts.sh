@@ -647,7 +647,7 @@ print(text[:12000])
 PY
 )
 
-  if bash scripts/openclaw_cli.sh agent --agent hugo --session-id "$HUGO_SESSION_ID" --to +15555550123 --timeout 900 --json --message "你现在要按编辑意见改稿（第 ${rev}/${MAX_REVISIONS} 版）。
+  if ! bash scripts/openclaw_cli.sh agent --agent hugo --session-id "$HUGO_SESSION_ID" --to +15555550123 --timeout 900 --json --message "你现在要按编辑意见改稿（第 ${rev}/${MAX_REVISIONS} 版）。
 
 二次选题标题：${TITLE}
 编辑改稿指令：${BRIEF}
@@ -662,10 +662,13 @@ PY
 原稿如下：
 ${ARTICLE_TEXT}
 " > "$ARTICLE_JSON"; then
-    echo "WARN: revision failed; keep original draft" >&2
-    exit 7
+    echo "WARN: revision succeeded" >&2
   else
-    python3 - <<'PY'
+    echo "WARN: revision failed" >&2
+    exit 7
+  fi
+
+  python3 - <<'PY'
 import json, pathlib, os, re
 article_json = pathlib.Path(os.environ['ARTICLE_JSON'])
 article_md_raw = pathlib.Path(os.environ['ARTICLE_MD_RAW'])
@@ -690,7 +693,6 @@ for pat in [r'^以下是.*?\n+', r'^下面是.*?\n+', r'^当然可以.*?\n+']:
 article_md_raw.write_text(text.strip()+'\n', encoding='utf-8')
 print('WROTE', str(article_md_raw))
 PY
-  fi
 
   # re-run editor on revised draft
   STAGE="edit_review"
