@@ -272,6 +272,15 @@ def load_recent_titles(auto_dir: Path, notion_db_id: str | None, limit: int = 8)
     return titles[:limit]
 
 
+def is_job_post(title: str) -> bool:
+    if not title:
+        return False
+    for pat in JOB_PATTERNS:
+        if re.search(pat, title, re.I):
+            return True
+    return False
+
+
 def score_item(it: dict, recent_titles: list[str]) -> tuple[float, dict]:
     title = it.get("title", "") or ""
     s = base_score(title)
@@ -320,7 +329,14 @@ def main():
 
     recent_titles = load_recent_titles(Path(args.recent_auto_dir), args.notion_db_id)
 
+    filtered = []
+    dropped_jobs = 0
     for it in items:
+        title = (it.get('title') or '')
+        if is_job_post(title):
+            it['droppedReason'] = 'job_post'
+            dropped_jobs += 1
+            continue
         raw_score, detail = score_item(it, recent_titles)
         it["score"] = round(float(raw_score), 3)
         if detail.get("noveltyPenalty"):
@@ -329,8 +345,9 @@ def main():
             it["publishability"] = detail["publishability"]
         if detail.get("trackPreference"):
             it["trackPreference"] = detail["trackPreference"]
+        filtered.append(it)
 
-    prelim = sorted(items, key=lambda x: x.get("score", 0), reverse=True)
+    prelim = sorted(filtered, key=lambda x: x.get("score", 0), reverse=True)
 
     # Source diversity pass: avoid one source monopolizing the whole top list.
     source_seen = {}
@@ -349,8 +366,11 @@ def main():
 
     brief = {
         "generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "sources": sorted({(it.get('sourceBlog') or it.get('source') or data.get('blog') or 'unknown') for it in items}),
+        "sources": sorted({(it.get('sourceBlog') or it.get('source') or data.get('blog') or 'unknown') for it in filtered}),
         "recentTitlesUsedForPenalty": recent_titles,
+        "filters": {
+            "droppedJobPosts": dropped_jobs,
+        },
         "top": top,
         "top10": items_sorted[:10],
         "hugoBrief": None,
