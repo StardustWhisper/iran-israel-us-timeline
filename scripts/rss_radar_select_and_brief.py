@@ -61,6 +61,13 @@ SECONDARY_TRACK_PENALTIES = [
 
 INVALID_TITLES = {"今日科技科普", "标题建议（5个）"}
 
+# Not publishable as a WeChat tech column main稿: job posts / hiring
+JOB_PATTERNS = [
+    r"\b(we\s*are\s*hiring|hiring|job|jobs|career|careers|apply\s+now)\b",
+    r"招聘|内推|招人|诚聘|求职|找工作|岗位|职位|JD|简历|面试|Offer|薪资|月薪|年薪",
+    r"寻.*工程师|找.*工程师|招.*工程师|诚聘.*工程师",
+]
+
 
 def tokenize(text: str) -> set[str]:
     text = text.lower()
@@ -135,6 +142,13 @@ def publishability_score(title: str, item: dict) -> tuple[float, dict]:
     reasons = {"bonus": [], "penalty": []}
     title_l = title.lower()
     source = (item.get("sourceBlog") or item.get("source") or "").lower()
+
+    # Hard penalty: job posts are not suitable as main稿
+    for pat in JOB_PATTERNS:
+        if re.search(pat, title, re.I):
+            s -= 6.0
+            reasons["penalty"].append("疑似招聘/求职信息，不适合作为公众号主稿")
+            break
 
     # 中文友好 / 国内科技媒体：更适合直接做公众号科普
     if re.search(r"[\u4e00-\u9fff]", title):
