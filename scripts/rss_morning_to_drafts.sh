@@ -590,52 +590,45 @@ print(text[:12000])
 PY
 )
 
-  if ! bash scripts/openclaw_cli.sh agent --agent hugo --session-id "$HUGO_SESSION_ID" --to +15555550123 --timeout 900 --json --message "你现在要按编辑意见改稿（第 ${rev}/${MAX_REVISIONS} 版）。
+  # Revision via direct Grok2API (stream=false)
+  REV_PROMPT="$OUT_DIR/revise_prompt_${rev}.txt"
+  export REV_PROMPT
+  python3 - <<'PY' > "$REV_PROMPT"
+import os, pathlib
 
-二次选题标题：${TITLE}
-编辑改稿指令：${BRIEF}
+title = os.environ.get('TITLE','').strip()
+brief = os.environ.get('BRIEF','').strip()
+article = pathlib.Path(os.environ['ARTICLE_MD_RAW']).read_text(encoding='utf-8')
+article_excerpt = article[:12000]
 
-要求：
-- 保留原标题（必须是二次标题；并尽量简洁，避免多重冒号/重复词）
-- 不要出现 URL/参考链接
-- 小标题必须像专栏：用问题式/结论式，不要出现“原创结构件/三层台阶/检查表/决策树”等标签词
-- 仍需：≥3个原创结构件 + 读者任务
-- 改完后输出完整 Markdown 正文（不要解释）
+ban_words = ['原创结构件','三层台阶','四层架构图','10项检查表','三问决策树','落地动作']
 
-原稿如下：
-${ARTICLE_TEXT}
-" > "$ARTICLE_JSON"; then
-    echo "WARN: revision succeeded" >&2
-  else
-    echo "WARN: revision failed" >&2
-    exit 7
-  fi
+parts = []
+parts.append('你现在要按编辑意见改稿（只输出最终中文Markdown正文，不要解释）。')
+parts.append('')
+parts.append(f'二次选题标题：{title}')
+parts.append(f'编辑改稿指令：{brief}')
+parts.append('')
+parts.append('硬性要求：')
+parts.append('- 不要出现任何URL/参考链接')
+parts.append('- 小标题(##)要像专栏：问题式/结论式；禁止出现这些词：' + '、'.join(ban_words))
+parts.append('- 必须包含：≥3个结构件内容 + 1段读者任务')
+parts.append('- 语气：工程化、克制、有判断')
+parts.append('')
+parts.append('原稿（供你改写，不要照抄句式）：')
+parts.append(article_excerpt)
 
-  python3 - <<'PY'
-import json, pathlib, os, re
-article_json = pathlib.Path(os.environ['ARTICLE_JSON'])
-article_md_raw = pathlib.Path(os.environ['ARTICLE_MD_RAW'])
-content = article_json.read_text(encoding='utf-8')
-start = content.find('{')
-obj = json.loads(content[start:])
-text = ''
-if isinstance(obj, dict) and 'result' in obj and isinstance(obj.get('result'), dict):
-    payloads = obj['result'].get('payloads') or []
-    if payloads:
-        best=max(payloads, key=lambda p: len((p.get('text') or '').strip()))
-        text=(best.get('text') or '').strip()
-elif isinstance(obj, dict) and 'payloads' in obj:
-    payloads=obj.get('payloads') or []
-    if payloads:
-        best=max(payloads, key=lambda p: len((p.get('text') or '').strip()))
-        text=(best.get('text') or '').strip()
-if not text:
-    raise SystemExit('no revised text')
-for pat in [r'^以下是.*?\n+', r'^下面是.*?\n+', r'^当然可以.*?\n+']:
-    text=re.sub(pat,'',text,flags=re.S)
-article_md_raw.write_text(text.strip()+'\n', encoding='utf-8')
-print('WROTE', str(article_md_raw))
+print('\n'.join(parts))
 PY
+
+  python3 scripts/grok2api_chat_completions.py \
+    --model "$GROK_MODEL" \
+    --system "You are a helpful assistant. Output only the final Chinese Markdown article." \
+    --user-file "$REV_PROMPT" \
+    --temperature "$GROK_TEMPERATURE" \
+    --max-tokens 2400 \
+    --out "$ARTICLE_MD_RAW" \
+    >/dev/null
 
   # re-run editor on revised draft
   STAGE="edit_review"
