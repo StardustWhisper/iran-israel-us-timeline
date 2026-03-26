@@ -37,7 +37,13 @@ trap on_error ERR
 BRIEF="rss/brief.json"
 
 # Allow picking rank N from last night's shortlist (top10)
-# Example: MORNING_PICK_RANK=2 (choose 2nd item)
+# - Env override: MORNING_PICK_RANK=2
+# - One-shot file override (preferred for ad-hoc runs): rss/morning_pick_rank_once.txt (will be deleted after read)
+MORNING_PICK_RANK="${MORNING_PICK_RANK:-}"
+if [[ -z "${MORNING_PICK_RANK}" ]] && [[ -f "rss/morning_pick_rank_once.txt" ]]; then
+  MORNING_PICK_RANK="$(cat rss/morning_pick_rank_once.txt | head -n 1 | tr -cd '0-9' || true)"
+  rm -f rss/morning_pick_rank_once.txt || true
+fi
 MORNING_PICK_RANK="${MORNING_PICK_RANK:-1}"
 export MORNING_PICK_RANK
 
