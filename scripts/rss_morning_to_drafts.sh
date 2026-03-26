@@ -182,9 +182,14 @@ PY
 }
 
 # Try twice; sometimes the agent returns an empty payload list.
+# Use a dedicated research agent so HUGO model changes don't break JSON-only research.
+CLAIMS_AGENT="${CLAIMS_AGENT:-linus}"
+CLAIMS_SESSION_ID="${HUGO_SESSION_ID}:claims"
+export CLAIMS_AGENT CLAIMS_SESSION_ID
+
 CLAIMS_OK=0
 for attempt in 1 2; do
-  if bash scripts/openclaw_cli.sh agent --agent hugo --session-id "$HUGO_SESSION_ID" --to +15555550123 --timeout 900 --json --message "你现在不是写文章，而是在搭建【观点卡片（Claim Cards）】。
+  if bash scripts/openclaw_cli.sh agent --agent "$CLAIMS_AGENT" --session-id "$CLAIMS_SESSION_ID" --to +15555550123 --timeout 900 --json --message "你现在不是写文章，而是在搭建【观点卡片（Claim Cards）】。
 
 输入：
 - 二次选题标题：${TITLE}
