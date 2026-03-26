@@ -415,94 +415,30 @@ print((obj.get('thesis') or '').strip())
 PY
 )
 
-if ! bash scripts/openclaw_cli.sh agent --agent hugo --session-id "$HUGO_SESSION_ID" --to +15555550123 --timeout 900 --json --message "请直接写一篇可发布到微信公众号的科技科普文章（不要贴参考链接）。
+# Draft generation via direct Grok2API /chat/completions (stream=false) to avoid OpenClaw agent session bloat.
+STAGE="drafting"
+ARTICLE_JSON="$OUT_DIR/hugo.json"
+ARTICLE_MD_RAW="$OUT_DIR/article_raw.md"
+ARTICLE_STATUS="generated"
+export ARTICLE_JSON ARTICLE_MD_RAW RESEARCH_JSON CLAIMS_JSON
 
-二次选题标题（必须用这个，不要用源标题）：${TITLE}
-文章核心观点（一句话，可写进开头）：${THESIS}
-源标题（禁止照抄/禁止做同义改写标题）：${SOURCE_TITLE}
-主参考链接（仅作为事实边界，不要按其段落顺序复述）：${URL}
+COMPACT_PROMPT="$OUT_DIR/compact_prompt.txt"
+python3 scripts/hugo_prompt_compact_from_claims.py --claims "$CLAIMS_JSON" --out "$COMPACT_PROMPT" --max-cards 8
 
-${RESEARCH_BRIEF}
+GROK_MODEL="${GROK_MODEL:-grok-4.20-beta}"
+GROK_TEMPERATURE="${GROK_TEMPERATURE:-0.7}"
+export GROK_MODEL GROK_TEMPERATURE
 
-关键要求：
-- 你写作时【只允许】使用“观点卡片（Claim Cards）”组织正文的论述；不要复述源文章段落顺序。
-- 标题/二级标题(##)要“像专栏”，不要使用固定模板词（例如：不要总写“发生了什么/核心机制/常见误区/结论&信号”）。
-- 二级标题(##)禁止出现“标签化词”（会显得像流水线）：
-  - 禁用词示例：原创结构件、三层台阶、四层架构图、10项检查表、三问决策树、落地动作
-  - 你可以保留这些内容，但标题要改成自然的问题式/结论式表达。
-- 主标题(H1)尽量简洁：避免多重冒号/重复词（“：”最多出现 1 次）。
-- 正文必须包含至少 3 个“原创结构件”（检查表/分层模型/决策树/对比表/上线守则等），并且要能让读者照着执行。
-- 必须包含 1 段“读者任务”（让读者回到自己系统/团队，做一个小的可执行动作）。
+python3 scripts/grok2api_chat_completions.py \
+  --model "$GROK_MODEL" \
+  --system "You are a helpful assistant. Output only the final Chinese Markdown article." \
+  --user-file "$COMPACT_PROMPT" \
+  --temperature "$GROK_TEMPERATURE" \
+  --max-tokens 2400 \
+  --out "$ARTICLE_MD_RAW" \
+  >/dev/null
 
-硬性要求（来自 Lambda）：
-1) 标题一定不能和源标题一样。
-2) 二次选题：在推荐标题基础上形成自己的观点（要写出明确判断/取舍）。
-3) 根据二次选题标题，再次收集信息完成文章：必须综合多方资料，不要只改写主参考链接。
-4) 推送到公众号的文章不必附加参考链接：不要在文末添加‘参考阅读/参考链接’段落，也不要在正文中放 URL。
-5) 封面图以标题为主（这一点你不用输出提示词）。
-6) 文内插图根据段落生成（这一点你不用输出提示词）。
-
-写作要求：
-- 最终输出必须是【可直接发表的正文 Markdown】
-- 不要输出任何写作说明、提示词、封面建议、编者按、备注、TODO、附加解释
-- 只输出文章本身
-- 受众：懂一点科技的普通读者
-- ${ARTICLE_STRUCTURE}
-- 风格：口语但不油腻，信息密度高
-- 长度：1800-2400字
-" > "$ARTICLE_JSON"; then
-  ARTICLE_STATUS="reused"
-else
-  if python3 - <<'PY'
-import json, pathlib, os, re
-article_json = pathlib.Path(os.environ['ARTICLE_JSON'])
-article_md_raw = pathlib.Path(os.environ['ARTICLE_MD_RAW'])
-content = article_json.read_text(encoding='utf-8')
-
-start = content.find('{')
-if start == -1:
-    raise SystemExit('No JSON object found in ' + str(article_json))
-obj = json.loads(content[start:])
-
-text = ''
-if isinstance(obj, dict) and 'result' in obj and isinstance(obj.get('result'), dict):
-    payloads = obj['result'].get('payloads') or []
-    if payloads and isinstance(payloads, list):
-        # Prefer the LONGER payload (some agents send a short partial first)
-        best = max(payloads, key=lambda p: len((p.get('text') or '').strip()))
-        text = (best.get('text') or '').strip()
-elif isinstance(obj, dict) and 'payloads' in obj:
-    payloads = obj.get('payloads') or []
-    if payloads and isinstance(payloads, list):
-        best = max(payloads, key=lambda p: len((p.get('text') or '').strip()))
-        text = (best.get('text') or '').strip()
-
-if not text:
-    raise KeyError(f"No text payload found. top_keys={list(obj.keys())}")
-
-# Strip common prefaces
-patterns = [
-    r'^以下是.*?\n+',
-    r'^下面是.*?\n+',
-    r'^当然可以.*?\n+',
-    r'^这是一篇.*?\n+',
-    r'^#?\s*可直接发布.*?\n+',
-]
-for pat in patterns:
-    text = re.sub(pat, '', text, flags=re.S)
-
-article_md_raw.write_text(text.strip() + '\n', encoding='utf-8')
-print('WROTE', str(article_md_raw))
-PY
-  then
-    ARTICLE_STATUS="generated"
-  elif [[ -s "$ARTICLE_MD_RAW" ]]; then
-    ARTICLE_STATUS="reused"
-  else
-    echo "Article generation failed and no reusable raw draft found" >&2
-    exit 4
-  fi
-fi
+ARTICLE_STATUS="generated"
 
 # 2) Enforce final H1 title must be our secondary title (and must not equal source title)
 STAGE="title_enforce"
