@@ -35,6 +35,12 @@ on_error() {
 trap on_error ERR
 
 BRIEF="rss/brief.json"
+
+# Allow picking rank N from last night's shortlist (top10)
+# Example: MORNING_PICK_RANK=2 (choose 2nd item)
+MORNING_PICK_RANK="${MORNING_PICK_RANK:-1}"
+export MORNING_PICK_RANK
+
 if [[ ! -f "$BRIEF" ]]; then
   # backward compat
   if [[ -f "rss/36kr-tech-brief.json" ]]; then
@@ -51,14 +57,29 @@ SOURCE_TITLE=$(python3 - <<'PY'
 import json, os
 p=os.environ['BRIEF']
 d=json.load(open(p,'r',encoding='utf-8'))
-print(d['top']['title'])
+rank = int(os.environ.get('MORNING_PICK_RANK','1') or '1')
+items = d.get('top10') or []
+# rank is 1-based
+idx = max(0, rank-1)
+if items and idx < len(items):
+    it = items[idx]
+else:
+    it = d.get('top') or {}
+print(it.get('title') or '')
 PY
 )
 URL=$(python3 - <<'PY'
 import json, os
 p=os.environ['BRIEF']
 d=json.load(open(p,'r',encoding='utf-8'))
-print(d['top']['url'])
+rank = int(os.environ.get('MORNING_PICK_RANK','1') or '1')
+items = d.get('top10') or []
+idx = max(0, rank-1)
+if items and idx < len(items):
+    it = items[idx]
+else:
+    it = d.get('top') or {}
+print(it.get('url') or '')
 PY
 )
 
