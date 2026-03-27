@@ -391,13 +391,6 @@ tagFilters.forEach(el=>el.addEventListener('change', applyFilters));
 srcFilters.forEach(el=>el.addEventListener('change', applyFilters));
 
 applyFilters();
-  const filtered=events.filter(e=>
-    (e.date+" "+e.title+" "+e.desc+" "+(e.sources||[]).map(x=>x.name).join(' ')).toLowerCase().includes(s)
-  );
-  render(filtered);
-});
-
-render(events);
 </script>
 </body>
 </html>
