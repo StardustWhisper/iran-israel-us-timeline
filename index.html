@@ -344,11 +344,22 @@ const events = [
   },
   {
     date: '2026-03-19',
-    tags: ['Iran'],
-    title: '[Iran] （索引）维基：美军启动“重开霍尔木兹海峡”行动（节点记录，待持续交叉验证）',
-    desc: '维基条目汇总称：在伊朗对航运发出警告并造成通行受阻背景下，美军于 3/19 启动旨在“打开海峡”的行动。此处先作为节点索引，后续会继续用可访问的权威来源补强。',
+    tags: ['Trump','Iran'],
+    title: '[Trump] AP：特朗普延后“48小时最后通牒”后称美伊有“良好沟通”；伊朗否认谈判但确认经中间方收讯',
+    desc: 'AP 报道称：特朗普曾以 48 小时期限威胁打击伊朗电力/能源设施，随后在期限前宣布暂缓（后续形成 5 天再延长至 4/6 的安排），并称与伊方有“良好沟通”；伊朗官方否认存在谈判，但相关报道指伊方确认通过中间方收到美方要点并在评估。',
     sources: [
-      {name:'Wikipedia：2026 Strait of Hormuz crisis（索引）', url:'https://en.wikipedia.org/wiki/2026_Strait_of_Hormuz_crisis'}
+      {name:'PBS（转引 AP，3/23）', url:'https://www.pbs.org/newshour/world/u-s-wont-strike-irans-power-plants-for-5-days-trump-says-in-turnaround-on-strait-of-hormuz-deadline'},
+      {name:'CBS News（3/23）', url:'https://www.cbsnews.com/news/trump-says-postpone-strikes-iran-nuclear-power-plants/'}
+    ]
+  },
+  {
+    date: '2026-03-25',
+    tags: ['Iran'],
+    title: '[Iran] 伊朗外长：霍尔木兹“对敌关闭、对友开放”；否认与美方谈判（多家媒体转引国营采访）',
+    desc: '多家媒体转引伊朗外长阿拉格齐在国营媒体采访中的表述：称霍尔木兹海峡位于伊朗与阿曼领海范围，伊方“主权已确立”，海峡并非完全关闭而是“对敌对方关闭”；并强调与美方“无谈判/无意谈判”，所谓中间方传话不构成谈判。',
+    sources: [
+      {name:'The Hindu（3/25）', url:'https://www.thehindu.com/news/national/india-among-five-nations-granted-passage-through-strait-of-hormuz-by-tehran/article70786984.ece'},
+      {name:'Anadolu Agency（3/26）', url:'https://www.aa.com.tr/en/americas/iran-s-foreign-minister-insists-there-are-no-talks-taking-place-with-us/3879387'}
     ]
   },
   {
@@ -364,10 +375,10 @@ const events = [
   {
     date: '2026-03-26',
     tags: ['Trump','Iran'],
-    title: '[Trump] 特朗普延后“打击伊朗能源设施”期限至 4/6；称谈判“进展很好”',
-    desc: '多家媒体报道特朗普称应伊朗方面请求，将对伊朗能源设施的打击推迟 10 天至 4/6，并称谈判“进展很好”；同时又发出“尽快认真谈，否则为时已晚”等警告。',
+    title: '[Trump] 特朗普延后“打击伊朗能源设施”期限至 4/6（美东 4/6 20:00；德黑兰为 4/7）；称谈判“进展很好”',
+    desc: '特朗普在 Truth Social 称“按伊朗政府请求”，将对伊朗能源/电力等设施的打击暂停期延长 10 天至 4/6（美东 20:00；德黑兰为 4/7），并称谈判“进展很好”；同时再次警告伊朗需尽快认真谈判。',
     sources: [
-      {name:'Los Angeles Times（3/26）', url:'https://www.latimes.com/world-nation/story/2026-03-26/trump-projects-confidence-claims-iran-is-begging-for-deal-but-war-exit-remains-murky'},
+      {name:'CBS News（3/26）', url:'https://www.cbsnews.com/news/trump-extending-pause-strikes-iran-energy-plants-april-6/'},
       {name:'The Guardian（3/26）', url:'https://www.theguardian.com/world/2026/mar/26/donald-trump-urges-iran-end-war-or-face-assassinations'},
       {name:'PBS（转引 AP）', url:'https://www.pbs.org/newshour/world/iran-and-the-u-s-harden-their-positions-as-tehran-tightens-its-grip-on-the-strait-of-hormuz'}
     ]
@@ -375,11 +386,11 @@ const events = [
   {
     date: '2026-03-26',
     tags: ['Mediator','Iran','Trump'],
-    title: '[Mediator] 美方经巴基斯坦转交“15点清单”；伊朗外长称未就停战谈判（PBS/AP + Reuters 转引）',
-    desc: 'PBS 报道提到：美方经巴基斯坦转交一份“15点行动清单/框架”；伊朗外长阿拉格齐称并未就结束战争进行谈判；另有 Reuters 转引称美方提案被指“单边且不公”。',
+    title: '[Mediator] 美方经巴基斯坦转交“15点清单/停火方案”；伊朗外长称“无谈判、也不打算谈”（AP/PBS）',
+    desc: 'AP 报道称：美方通过巴基斯坦等中间方递交“15点行动清单/停火框架”。伊朗外长阿拉格齐在国营媒体采访中表示，所谓通过中间方转递消息不构成“对话/谈判”，伊方“没有与美方谈判、也不打算谈”。',
     sources: [
-      {name:'PBS（转引 AP 报道）', url:'https://www.pbs.org/newshour/world/iran-and-the-u-s-harden-their-positions-as-tehran-tightens-its-grip-on-the-strait-of-hormuz'},
-      {name:'KSL（转引 Reuters）', url:'https://www.ksl.com/article/51473192/iran-sees-us-peace-plan-as-one-sided-as-trump-presses-for-deal'}
+      {name:'AP（3/24）：15-point ceasefire plan', url:'https://apnews.com/article/iran-us-israel-trump-lebanon-march-24-2026-8bb5e79a98ea72fccc5c50b4931ad778'},
+      {name:'PBS（转引 AP，3/26）', url:'https://www.pbs.org/newshour/world/iran-and-the-u-s-harden-their-positions-as-tehran-tightens-its-grip-on-the-strait-of-hormuz'}
     ]
   },
   {
@@ -408,6 +419,16 @@ const events = [
     desc: 'CFR 在 3/26 更新中汇总冲突爆发、报复行动、人道与能源冲击等关键脉络（便于逐日扩展与交叉验证）。',
     sources: [
       {name:'CFR Conflict Tracker（Updated Mar 26, 2026）', url:'https://www.cfr.org/global-conflict-tracker/conflict/confrontation-between-united-states-and-iran'}
+    ]
+  },
+  {
+    date: '2026-03-27',
+    tags: ['Iran'],
+    title: '[Iran] 伊朗外长重申：霍尔木兹对“友好国家”开放；称“对敌关闭”（媒体转引）',
+    desc: '多家媒体报道转述伊朗外长阿拉格齐：称霍尔木兹海峡并非完全关闭，而是对“敌对方”关闭，同时允许“友好国家”船只通行，并强调伊方将对通行安排建立“新机制/新安排”。',
+    sources: [
+      {name:'The Hindu（3/27）', url:'https://www.thehindu.com/news/international/us-israel-iran-war-list-of-countries-allowed-to-cross-the-strait-of-hormuz/article70791104.ece'},
+      {name:'The Hindu（3/25，采访节选）', url:'https://www.thehindu.com/news/national/india-among-five-nations-granted-passage-through-strait-of-hormuz-by-tehran/article70786984.ece'}
     ]
   }
 ];
