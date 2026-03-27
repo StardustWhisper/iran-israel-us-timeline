@@ -21,6 +21,12 @@
     .title{margin:6px 0 8px;font-size:16px;font-weight:650;}
     .desc{margin:0;color:var(--muted);}
     .sources{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;}
+    .tags{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;}
+    .tag{font-size:11px;color:var(--text);background:var(--tag);border:1px solid var(--line);padding:4px 8px;border-radius:999px;opacity:.95}
+    details{margin:10px 0;}
+    details > summary{list-style:none;}
+    details > summary::-webkit-details-marker{display:none;}
+    .day{margin:10px 0 16px;}
     a{color:var(--link);text-decoration:none}
     a:hover{text-decoration:underline}
     footer{max-width:980px;margin:0 auto;padding:12px 18px 40px;color:var(--muted);font-size:12px;line-height:1.5}
@@ -36,8 +42,25 @@
 
   <div class="wrap">
     <div class="controls">
-      <input id="q" placeholder="搜索关键词（例：霍尔木兹 / Khamenei / UNHCR）" />
+      <input id="q" placeholder="搜索（例：Trump / Araghchi / UN / Hormuz）" />
       <span class="pill" id="count"></span>
+      <span class="pill">标签：</span>
+      <label class="pill"><input type="checkbox" class="tagf" value="Trump" checked> Trump</label>
+      <label class="pill"><input type="checkbox" class="tagf" value="Iran" checked> Iran</label>
+      <label class="pill"><input type="checkbox" class="tagf" value="Israel" checked> Israel</label>
+      <label class="pill"><input type="checkbox" class="tagf" value="UN" checked> UN</label>
+      <label class="pill"><input type="checkbox" class="tagf" value="China" checked> China</label>
+      <label class="pill"><input type="checkbox" class="tagf" value="Russia" checked> Russia</label>
+      <label class="pill"><input type="checkbox" class="tagf" value="G7" checked> G7</label>
+      <label class="pill"><input type="checkbox" class="tagf" value="Mediator" checked> Mediator</label>
+      <span class="pill">来源：</span>
+      <label class="pill"><input type="checkbox" class="srcf" value="theguardian.com" checked> Guardian</label>
+      <label class="pill"><input type="checkbox" class="srcf" value="apnews.com" checked> AP</label>
+      <label class="pill"><input type="checkbox" class="srcf" value="cfr.org" checked> CFR</label>
+      <label class="pill"><input type="checkbox" class="srcf" value="iea.org" checked> IEA</label>
+      <label class="pill"><input type="checkbox" class="srcf" value="pbs.org" checked> PBS</label>
+      <label class="pill"><input type="checkbox" class="srcf" value="wikipedia.org" checked> Wikipedia</label>
+      <label class="pill"><input type="checkbox" class="srcf" value="*" checked> Other</label>
     </div>
 
     <div class="timeline" id="timeline"></div>
@@ -50,10 +73,10 @@
 
 <script>
 const events = [
-  // 2026-02-28（开战日）
   {
     date: '2026-02-28',
-    title: '美以对伊朗发动大规模打击；特朗普称哈梅内伊被杀、行动将持续',
+    tags: ['Trump','Iran'],
+    title: '[Trump] 美以对伊朗发动大规模打击；特朗普称哈梅内伊被杀、行动将持续',
     desc: 'CBS News 引述特朗普表态称伊朗最高领袖阿里·哈梅内伊在美以行动中死亡，并称轰炸将持续以达成目标；CFR 将 2/28 作为冲突爆发起点。',
     sources: [
       {name:'CBS News（2/28 更新）', url:'https://www.cbsnews.com/news/ayatollah-khamenei-dead-iranian-supreme-leader-us-israel-military-mission/'},
@@ -62,141 +85,183 @@ const events = [
   },
   {
     date: '2026-02-28',
-    title: '伊朗总统：将“复仇”；伊朗对地区目标发动报复（CFR 摘要）',
+    tags: ['Iran'],
+    title: '[Iran] 伊朗总统：将“复仇”；伊朗对地区目标发动报复（CFR 摘要）',
     desc: 'CFR 文章摘引伊朗总统关于“复仇”的表态，并概述伊朗对以色列及多个海湾国家/美军设施的报复性攻击。',
     sources: [
       {name:'CFR：Gauging the Impact of Massive U.S.-Israeli Strikes on Iran', url:'https://www.cfr.org/articles/gauging-the-impact-of-massive-u-s-israeli-strikes-on-iran'}
     ]
   },
-
-  // 2026-03-01（关于行动与目标的关键叙事/细节开始出现）
   {
     date: '2026-03-01',
-    title: '英媒：美以对哈梅内伊的“定点斩首”细节曝光（行动叙事成形）',
-    desc: '卫报报道梳理了美以对哈梅内伊实施“斩首”行动的情报与执行细节（如多点近同时打击、对伊朗高层的影响等），成为后续各方表态与升级/降级讨论的重要背景叙事。',
+    tags: ['Israel','Iran'],
+    title: '[Israel] 英媒：美以对哈梅内伊的“定点斩首”行动细节曝光（叙事成形）',
+    desc: '卫报报道梳理了美以对哈梅内伊实施“斩首”行动的情报与执行细节，成为后续各方表态与升级/降级讨论的重要背景叙事。',
     sources: [
       {name:'The Guardian（3/01）', url:'https://www.theguardian.com/world/2026/mar/01/how-israeli-sleight-and-us-might-led-to-the-assassination-of-ali-khamenei'}
     ]
   },
-
-
-  // 2026-03-02（美方口径：为何“提前介入”）
   {
     date: '2026-03-02',
-    title: '鲁比奥：美方出手是因预期以色列将打击、伊朗会报复美军（英媒）',
+    tags: ['Trump','Iran','Israel'],
+    title: '[Trump] 鲁比奥：美方“先发制人”是因预期以色列将打击、伊朗会报复美军（英媒）',
     desc: '卫报报道：鲁比奥称美方判断以色列将采取行动且伊朗会报复美国，因此进行“先发制人式”打击以降低美军伤亡；文中也反映了国会对战争目标与退出路径的质询。',
     sources: [
       {name:'The Guardian（3/02）', url:'https://www.theguardian.com/us-news/2026/mar/02/rubio-us-attack-israel-iran'}
     ]
   },
-
-  // 2026-03-02（盟友表态：西班牙拒绝基地用于打击）
   {
     date: '2026-03-02',
-    title: '西班牙拒绝美方使用共同基地发动打击；称行动“缺乏国际法依据”（英媒）',
+    tags: ['UN'],
+    title: '[UN] 西班牙拒绝美方使用共同基地发动打击；称行动缺乏国际法依据（英媒）',
     desc: '卫报报道：西班牙政府称不会允许共同基地用于打击伊朗，强调须符合协议与联合国宪章框架；并公开批评军事干预“危险且缺乏合法性”。',
     sources: [
       {name:'The Guardian（3/02）', url:'https://www.theguardian.com/world/2026/mar/02/spain-denies-united-states-permission-military-bases-iran-pedro-sanchez'}
     ]
   },
-  // 2026-03-03（特朗普对“战后/继任”公开表态，并牵动盟友维度）
   {
     date: '2026-03-03',
-    title: '特朗普：最担心“换人不换质”；并就盟友基地/贸易问题发出威胁（英媒）',
-    desc: '卫报报道：特朗普称其“最坏情形”是政权更迭后出现“和前任一样糟糕”的领导人；同场合还出现对盟友（如基地使用、贸易等）的强硬表态，反映其对战争目标与盟友角色的摇摆叙事。',
+    tags: ['Trump'],
+    title: '[Trump] 特朗普：最担心“换人不换质”；并对盟友基地/贸易发出威胁（英媒）',
+    desc: '卫报报道：特朗普称其“最坏情形”是政权更迭后出现“和前任一样糟糕”的领导人；并出现对盟友（如基地使用、贸易等）的强硬表态。',
     sources: [
       {name:'The Guardian（3/03）', url:'https://www.theguardian.com/world/2026/mar/03/trump-says-he-fears-irans-next-leader-could-be-as-bad-as-the-previous-person'}
     ]
   },
-
-  // 2026-03-04（伊朗继任人选传闻与美方/以方强硬话术）
   {
     date: '2026-03-04',
-    title: '英媒：Mojtaba Khamenei 被指“最可能继任”；美方与以方强硬表态并行',
-    desc: '卫报报道：Mojtaba Khamenei 被广泛视为可能继任人选；报道同时提到美方官员对伊朗体制的强硬定性，以及以方对潜在继任者的威胁性言论，为后续“继任宣布”与谈判口径铺垫。',
+    tags: ['Iran','Trump','Israel'],
+    title: '[Iran] 英媒：Mojtaba Khamenei 被指“最可能继任”；多方强硬口径并行',
+    desc: '卫报报道：Mojtaba Khamenei 被广泛视为可能继任人选；报道同时提到美方官员对伊朗体制的强硬定性，以及以方对潜在继任者的威胁性言论。',
     sources: [
       {name:'The Guardian（3/04）', url:'https://www.theguardian.com/world/2026/mar/04/mojtaba-khamenei-son-of-former-supreme-leader-tipped-to-become-irans-next-head-of-state'}
     ]
   },
-
-
-
-  // 2026-03-18（伊朗口径：威胁打击海湾能源设施；第三方国家表态）
-  {
-    date: '2026-03-18',
-    title: '伊朗革命卫队威胁报复海湾能源设施；卡塔尔称威胁全球能源安全（英媒）',
-    desc: '卫报报道：在以色列对伊朗大型气田相关打击背景下，伊朗方面威胁将针对沙特、阿联酋、卡塔尔等能源设施；卡塔尔官员称针对能源基础设施将危及地区与全球能源安全。',
-    sources: [
-      {name:'The Guardian（3/18）', url:'https://www.theguardian.com/world/2026/mar/18/iran-gulf-energy-facilities-israel-south-pars-gas-field-saudi-arabia-uae-qatar'}
-    ]
-  },
-  // 2026-03-19（霍尔木兹相关：美方行动升级节点）
-  {
-    date: '2026-03-19',
-    title: '（索引）维基汇总：美军启动“重开霍尔木兹海峡”行动（节点记录，待持续交叉验证）',
-    desc: '维基条目汇总称：在伊朗对航运发出警告并造成通行受阻背景下，美军于 3/19 启动旨在“打开海峡”的行动。此处先作为时间轴节点索引，后续会继续用可访问的一手/权威媒体来源补强。',
-    sources: [
-      {name:'Wikipedia：2026 Strait of Hormuz crisis（索引）', url:'https://en.wikipedia.org/wiki/2026_Strait_of_Hormuz_crisis'}
-    ]
-  },
-
-
-  // 2026-03-08（伊朗最高领袖更迭）
   {
     date: '2026-03-08',
-    title: '伊朗宣布由 Mojtaba Khamenei 继任最高领袖；特朗普公开评论',
+    tags: ['Iran','Trump'],
+    title: '[Iran] 伊朗宣布由 Mojtaba Khamenei 继任最高领袖；特朗普公开评论（英媒）',
     desc: '卫报报道：负责遴选最高领袖的机构宣布由 Mojtaba Khamenei 继任，并出现多方效忠声明；报道同时转述特朗普对这一人选的公开评论。',
     sources: [
       {name:'The Guardian（3/08）', url:'https://www.theguardian.com/world/2026/mar/08/ali-khameneis-son-mojtaba-chosen-as-irans-new-supreme-leader'}
     ]
   },
-
-  // 2026-03-11（能源冲击）
+  {
+    date: '2026-03-10',
+    tags: ['G7','Iran'],
+    title: '[G7] Aramco 警告油市“灾难性后果”；报道提及 G7 呼吁准备释油情景（英媒）',
+    desc: '卫报商业版报道：Aramco CEO 警告若霍尔木兹长期受阻将对全球经济造成“灾难性后果”；报道同时提及 G7 领导人呼吁能源机构准备应急释油情景。',
+    sources: [
+      {name:'The Guardian（3/10）', url:'https://www.theguardian.com/business/2026/mar/10/aramco-warns-oil-market-catastrophe-strait-of-hormuz'}
+    ]
+  },
   {
     date: '2026-03-11',
-    title: 'IEA 宣布集体释油 4 亿桶：称霍尔木兹油流量降至战前 10% 以下',
-    desc: 'IEA 新闻稿称，为应对中东冲突导致的供应扰动，32 个成员国同意向市场投放 4 亿桶应急储备；并称冲突阻碍霍尔木兹海峡油流，出口量降至战前的 10% 以下。',
+    tags: ['Iran'],
+    title: '[Iran] IEA：油市遭遇“史上最大供应扰动”；报道称 Mojtaba 表态要求海峡“保持关闭”（英媒）',
+    desc: '卫报报道：IEA 警告中东冲突导致供应扰动；并提到一份被称为来自新最高领袖的声明呼吁霍尔木兹“保持关闭”。',
+    sources: [
+      {name:'The Guardian（3/12 报道，含 3/11 释油背景）', url:'https://www.theguardian.com/business/2026/mar/12/middle-east-war-creating-largest-supply-disruption-in-the-history-of-oil-markets'}
+    ]
+  },
+  {
+    date: '2026-03-11',
+    tags: ['Trump','Iran'],
+    title: '[Trump] 美情报：对油轮“直接打击”风险更高；白宫以 Truth Social 威胁回应（英媒）',
+    desc: '卫报报道：美方情报评估认为最大风险来自伊朗对油轮的直接打击；文中提到白宫以特朗普 Truth Social 的威胁作为回应口径之一。',
+    sources: [
+      {name:'The Guardian（3/11）', url:'https://www.theguardian.com/world/2026/mar/11/attacks-iran-oil-tankers-strait-hormuz'}
+    ]
+  },
+  {
+    date: '2026-03-11',
+    tags: ['Iran'],
+    title: '[Iran] IEA 官方新闻稿：成员国同意释油 4 亿桶（提到霍尔木兹油流量骤降）',
+    desc: 'IEA 新闻稿：32 个成员国同意投放 4 亿桶应急储备以应对供应扰动，并提到冲突影响下霍尔木兹通道油流量显著下降。',
     sources: [
       {name:'IEA News（释油新闻稿）', url:'https://www.iea.org/news/iea-member-countries-to-carry-out-largest-ever-oil-stock-release-amid-market-disruptions-from-middle-east-conflict'}
     ]
   },
-
-  // 2026-03-11（人道与问责讨论）
   {
     date: '2026-03-11',
-    title: '大赦国际：要求就“米纳卜学校遭袭”问责，指向“过时情报/预防义务”',
+    tags: ['UN'],
+    title: '[UN] 大赦国际：要求就“米纳卜学校遭袭”问责，指向“过时情报/预防义务”',
     desc: '大赦国际称 2/28 米纳卜一所学校遭袭造成大量儿童死亡，呼吁透明调查与问责，并提到媒体报道显示美方初步调查指向“依赖过时数据”。',
     sources: [
       {name:'Amnesty International', url:'https://www.amnesty.org/en/latest/news/2026/03/usa-iran-those-responsible-for-deadly-and-unlawful-us-strike-on-school-that-killed-over-100-children-must-be-held-accountable/'}
     ]
   },
-
-  // 2026-03-25（联合国场合的区域表态）
+  {
+    date: '2026-03-14',
+    tags: ['Trump','Iran'],
+    title: '[Trump] 特朗普谈 Kharg Island：可能“再打几次就当取乐”，并提及护航/协同（英媒）',
+    desc: '卫报报道：特朗普对媒体称可能对伊朗关键出口枢纽 Kharg Island 进行更多打击，并谈及霍尔木兹通航与“团队协作”等叙事。',
+    sources: [
+      {name:'The Guardian（3/14）', url:'https://www.theguardian.com/world/2026/mar/14/us-kharg-island-oil-export-hub'}
+    ]
+  },
+  {
+    date: '2026-03-15',
+    tags: ['Iran'],
+    title: '[Iran] 英媒：Kharg Island 风险与油田“被迫关停”担忧，油价仍可能高位（英媒）',
+    desc: '卫报分析：Kharg Island（伊朗关键出口枢纽）相关风险与海湾油气供应链瓶颈叠加，可能使油价长期承压；并讨论海湾国家被迫关停与恢复生产的技术周期。',
+    sources: [
+      {name:'The Guardian（3/15）', url:'https://www.theguardian.com/business/2026/mar/15/middle-east-oilfield-shutdowns-prices-high-iran-war-strait-of-hormuz'}
+    ]
+  },
+  {
+    date: '2026-03-17',
+    tags: ['Iran'],
+    title: '[Iran] 英媒：伊朗首次打击“生产设施”相关报道；外长否认与美方特使接触',
+    desc: '卫报报道：油气价格在伊朗对相关设施打击消息后再度走高；并提到伊朗外长阿拉格齐否认与美方特使接触的报道。',
+    sources: [
+      {name:'The Guardian（3/17）', url:'https://www.theguardian.com/business/2026/mar/17/oil-gas-prices-rise-iran-us-israel-war-brent-crude-uae-strikes'}
+    ]
+  },
+  {
+    date: '2026-03-18',
+    tags: ['Iran'],
+    title: '[Iran] 伊朗革命卫队威胁报复海湾能源设施；卡塔尔称威胁全球能源安全（英媒）',
+    desc: '卫报报道：在以色列对伊朗大型气田相关打击背景下，伊朗方面威胁将针对沙特、阿联酋、卡塔尔等能源设施；卡塔尔官员称针对能源基础设施将危及地区与全球能源安全。',
+    sources: [
+      {name:'The Guardian（3/18）', url:'https://www.theguardian.com/world/2026/mar/18/iran-gulf-energy-facilities-israel-south-pars-gas-field-saudi-arabia-uae-qatar'}
+    ]
+  },
+  {
+    date: '2026-03-19',
+    tags: ['Iran'],
+    title: '[Iran] （索引）维基：美军启动“重开霍尔木兹海峡”行动（节点记录，待持续交叉验证）',
+    desc: '维基条目汇总称：在伊朗对航运发出警告并造成通行受阻背景下，美军于 3/19 启动旨在“打开海峡”的行动。此处先作为节点索引，后续会继续用可访问的权威来源补强。',
+    sources: [
+      {name:'Wikipedia：2026 Strait of Hormuz crisis（索引）', url:'https://en.wikipedia.org/wiki/2026_Strait_of_Hormuz_crisis'}
+    ]
+  },
   {
     date: '2026-03-25',
-    title: 'Reuters 相关报道：海湾国家在联合国场合称伊朗袭击构成“生存性威胁”',
+    tags: ['UN','Iran'],
+    title: '[UN] Reuters 相关报道：海湾国家在联合国场合称伊朗袭击构成“生存性威胁”',
     desc: '多家媒体转载 Reuters：海湾国家在联合国人权理事会表态称伊朗对其基础设施袭击构成严重威胁，并讨论相关决议与人道法风险。',
     sources: [
       {name:'StreetInsider（Reuters 转载）', url:'https://www.streetinsider.com/Reuters/Iranian+strikes+pose+%E2%80%98existential+threat%E2%80%99%2C+Gulf+states+tell+UN/26212791.html'},
       {name:'CFR Conflict Tracker（背景）', url:'https://www.cfr.org/global-conflict-tracker/conflict/confrontation-between-united-states-and-iran'}
     ]
   },
-
-  // 2026-03-26（表态密集：美方、伊方、海湾、以方）
   {
     date: '2026-03-26',
-    title: '特朗普延后“打击伊朗能源设施”期限至 4/6；称谈判“进展很好”',
+    tags: ['Trump','Iran'],
+    title: '[Trump] 特朗普延后“打击伊朗能源设施”期限至 4/6；称谈判“进展很好”',
     desc: '多家媒体报道特朗普称应伊朗方面请求，将对伊朗能源设施的打击推迟 10 天至 4/6，并称谈判“进展很好”；同时又发出“尽快认真谈，否则为时已晚”等警告。',
     sources: [
       {name:'Los Angeles Times（3/26）', url:'https://www.latimes.com/world-nation/story/2026-03-26/trump-projects-confidence-claims-iran-is-begging-for-deal-but-war-exit-remains-murky'},
       {name:'The Guardian（3/26）', url:'https://www.theguardian.com/world/2026/mar/26/donald-trump-urges-iran-end-war-or-face-assassinations'},
-      {name:'The Hindu（3/27 发布，回顾 3/26 表态）', url:'https://www.thehindu.com/news/international/trump-extends-deadline-for-iran-to-open-strait-of-hormuz-to-april-6/article70790968.ece'}
+      {name:'PBS（转引 AP）', url:'https://www.pbs.org/newshour/world/iran-and-the-u-s-harden-their-positions-as-tehran-tightens-its-grip-on-the-strait-of-hormuz'}
     ]
   },
   {
     date: '2026-03-26',
-    title: '伊朗外长称未就停战谈判；美方经巴基斯坦转交“15点清单”（PBS/AP）',
-    desc: 'PBS 引述报道：美方经巴基斯坦转交一份“15点行动清单/框架”；伊朗外长阿拉格齐称并未就结束战争进行谈判，也不打算谈；伊朗媒体称另有自身提案/要求。',
+    tags: ['Mediator','Iran','Trump'],
+    title: '[Mediator] 美方经巴基斯坦转交“15点清单”；伊朗外长称未就停战谈判（PBS/AP + Reuters 转引）',
+    desc: 'PBS 报道提到：美方经巴基斯坦转交一份“15点行动清单/框架”；伊朗外长阿拉格齐称并未就结束战争进行谈判；另有 Reuters 转引称美方提案被指“单边且不公”。',
     sources: [
       {name:'PBS（转引 AP 报道）', url:'https://www.pbs.org/newshour/world/iran-and-the-u-s-harden-their-positions-as-tehran-tightens-its-grip-on-the-strait-of-hormuz'},
       {name:'KSL（转引 Reuters）', url:'https://www.ksl.com/article/51473192/iran-sees-us-peace-plan-as-one-sided-as-trump-presses-for-deal'}
@@ -204,15 +269,8 @@ const events = [
   },
   {
     date: '2026-03-26',
-    title: '海合会秘书长：伊朗对过航船只“收费/收通行费”',
-    desc: 'PBS 报道提到：海合会秘书长称伊朗正对船只安全通行收取费用；并与“谈判/停火条件、霍尔木兹通航恢复”议题绑定。',
-    sources: [
-      {name:'PBS（转引 AP 报道）', url:'https://www.pbs.org/newshour/world/iran-and-the-u-s-harden-their-positions-as-tehran-tightens-its-grip-on-the-strait-of-hormuz'}
-    ]
-  },
-  {
-    date: '2026-03-26',
-    title: 'AP：伊朗将对霍尔木兹“事实控制”制度化，出现类似“收费站”机制',
+    tags: ['Iran'],
+    title: '[Iran] AP：伊朗将对霍尔木兹“事实控制”制度化，出现类似“收费站”机制',
     desc: 'AP 报道称：船舶通行需进入伊朗领海并接受 IRGC 审核，部分船只为通行付费；航运量较战前下降约 90%，并出现“在伊朗水域北线绕行”等趋势。',
     sources: [
       {name:'AP：Iran formalizes its chokehold over the Strait of Hormuz', url:'https://apnews.com/article/iran-hormuz-shipping-tolls-china-de5159966cde7de7b964b3c2c67eec07'}
@@ -220,34 +278,19 @@ const events = [
   },
   {
     date: '2026-03-26',
-    title: '阿联酋 ADNOC 负责人称封锁/武器化霍尔木兹为“经济恐怖主义”（AP 引述）',
-    desc: 'AP 报道引述 ADNOC 负责人 Sultan al-Jaber 表态，称“武器化霍尔木兹海峡”会让所有消费者为之买单，并用“economic terrorism”形容其对全球经济的冲击。',
-    sources: [
-      {name:'AP：Iran formalizes its chokehold over the Strait of Hormuz', url:'https://apnews.com/article/iran-hormuz-shipping-tolls-china-de5159966cde7de7b964b3c2c67eec07'}
-    ]
-  },
-  {
-    date: '2026-03-26',
-    title: '以色列称打击并“清除”伊朗革命卫队海军指挥官等（以方表态）',
+    tags: ['Israel','Iran'],
+    title: '[Israel] 以方称打击并“清除”伊朗革命卫队海军指挥官等（媒体转引）',
     desc: '多家媒体报道以方称在打击中“清除/击毙”伊朗革命卫队海军指挥官等关键人物；伊朗方面并非总会立即承认相关说法。',
     sources: [
       {name:'The Guardian（3/26）', url:'https://www.theguardian.com/world/2026/mar/26/donald-trump-urges-iran-end-war-or-face-assassinations'},
-      {name:'PBS（转引 AP 报道）', url:'https://www.pbs.org/newshour/world/iran-and-the-u-s-harden-their-positions-as-tehran-tightens-its-grip-on-the-strait-of-hormuz'}
+      {name:'PBS（转引 AP）', url:'https://www.pbs.org/newshour/world/iran-and-the-u-s-harden-their-positions-as-tehran-tightens-its-grip-on-the-strait-of-hormuz'}
     ]
   },
   {
     date: '2026-03-26',
-    title: '特朗普批评北约盟友“未提供帮助”等（盟友维度表态）',
-    desc: '卫报报道提到：特朗普在一系列公开表态中再次批评北约盟友在冲突中“没有帮助”，并与其“美国不需要盟友/但也不会忘记”的叙事相互交织。',
-    sources: [
-      {name:'The Guardian（3/26）', url:'https://www.theguardian.com/world/2026/mar/26/donald-trump-urges-iran-end-war-or-face-assassinations'},
-      {name:'Los Angeles Times（3/26）', url:'https://www.latimes.com/world-nation/story/2026-03-26/trump-projects-confidence-claims-iran-is-begging-for-deal-but-war-exit-remains-murky'}
-    ]
-  },
-  {
-    date: '2026-03-26',
-    title: 'CFR 更新：冲突态势、人道与能源冲击的“骨架摘要”（便于继续逐日扩展）',
-    desc: 'CFR 在 3/26 更新中汇总冲突爆发、报复行动、人道与能源冲击等关键脉络（适合作为后续逐日补齐的底座）。',
+    tags: ['UN'],
+    title: '[UN] CFR 更新：冲突态势、人道与能源冲击的“骨架摘要”',
+    desc: 'CFR 在 3/26 更新中汇总冲突爆发、报复行动、人道与能源冲击等关键脉络（便于逐日扩展与交叉验证）。',
     sources: [
       {name:'CFR Conflict Tracker（Updated Mar 26, 2026）', url:'https://www.cfr.org/global-conflict-tracker/conflict/confrontation-between-united-states-and-iran'}
     ]
@@ -255,21 +298,54 @@ const events = [
 ];
 
 function render(list){
+  // Group by date (foldable)
+  const groups = new Map();
+  for(const e of list){
+    const d = e.date || 'Unknown';
+    if(!groups.has(d)) groups.set(d, []);
+    groups.get(d).push(e);
+  }
+  const dates = Array.from(groups.keys()).sort();
+
   const root=document.getElementById('timeline');
   root.innerHTML='';
-  for(const e of list){
-    const div=document.createElement('div');
-    div.className='item';
-    div.innerHTML=`
-      <div class="date">${e.date}</div>
-      <div class="title">${escapeHtml(e.title)}</div>
-      <p class="desc">${escapeHtml(e.desc)}</p>
-      <div class="sources">${(e.sources||[]).map(s=>`<a href="${s.url}" target="_blank" rel="noopener">${escapeHtml(s.name)}</a>`).join(' · ')}
-      </div>
-    `;
-    root.appendChild(div);
+
+  let total=0;
+  for(const d of dates){
+    const items = groups.get(d);
+    total += items.length;
+
+    const details=document.createElement('details');
+    details.open = (d >= '2026-03-20');
+
+    const summary=document.createElement('summary');
+    summary.className='pill';
+    summary.style.cursor='pointer';
+    summary.textContent = `${d} · ${items.length} 条`;
+    details.appendChild(summary);
+
+    const day=document.createElement('div');
+    day.className='day';
+
+    for(const e of items){
+      const div=document.createElement('div');
+      div.className='item';
+      const tagHtml = (e.tags||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('');
+      div.innerHTML=`
+        <div class="date">${escapeHtml(e.date)}</div>
+        <div class="title">${escapeHtml(e.title)}</div>
+        <div class="tags">${tagHtml}</div>
+        <p class="desc">${escapeHtml(e.desc)}</p>
+        <div class="sources">${(e.sources||[]).map(s=>`<a href="${s.url}" target="_blank" rel="noopener">${escapeHtml(s.name)}</a>`).join(' · ')}</div>
+      `;
+      day.appendChild(div);
+    }
+
+    details.appendChild(day);
+    root.appendChild(details);
   }
-  document.getElementById('count').textContent=`${list.length} 条事件`;
+
+  document.getElementById('count').textContent=`${total} 条事件（当前筛选）`;
 }
 
 function escapeHtml(str){
@@ -277,9 +353,44 @@ function escapeHtml(str){
 }
 
 const q=document.getElementById('q');
-q.addEventListener('input', ()=>{
+const tagFilters = Array.from(document.querySelectorAll('.tagf'));
+const srcFilters = Array.from(document.querySelectorAll('.srcf'));
+
+function enabled(set){
+  return new Set(set.filter(x=>x.checked).map(x=>x.value));
+}
+
+function hostOf(url){
+  try{ return new URL(url).host.replace(/^www\./,''); }catch{ return ''; }
+}
+
+function applyFilters(){
   const s=q.value.trim().toLowerCase();
-  if(!s) return render(events);
+  const enabledTags=enabled(tagFilters);
+  const enabledHosts=enabled(srcFilters);
+
+  const filtered=events.filter(e=>{
+    const tags=e.tags||[];
+    const tagOk = tags.length===0 ? true : tags.some(t=>enabledTags.has(t));
+    if(!tagOk) return false;
+
+    const hosts=(e.sources||[]).map(x=>hostOf(x.url)).filter(Boolean);
+    const hostOk = hosts.length===0 ? enabledHosts.has('*') : hosts.some(h=>enabledHosts.has(h)) || enabledHosts.has('*');
+    if(!hostOk) return false;
+
+    if(!s) return true;
+    const hay=(e.date+' '+e.title+' '+e.desc+' '+(e.sources||[]).map(x=>x.name).join(' ')+' '+tags.join(' ')).toLowerCase();
+    return hay.includes(s);
+  });
+
+  render(filtered);
+}
+
+q.addEventListener('input', applyFilters);
+tagFilters.forEach(el=>el.addEventListener('change', applyFilters));
+srcFilters.forEach(el=>el.addEventListener('change', applyFilters));
+
+applyFilters();
   const filtered=events.filter(e=>
     (e.date+" "+e.title+" "+e.desc+" "+(e.sources||[]).map(x=>x.name).join(' ')).toLowerCase().includes(s)
   );
