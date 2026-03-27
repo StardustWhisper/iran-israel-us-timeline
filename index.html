@@ -30,7 +30,7 @@
 <body>
   <header>
     <h1>美国-以色列-伊朗冲突时间轴（自 2026-02-28 起）</h1>
-    <p>这是基于公开报道的“重大事件”梳理版（便于快速回看）。如果你要更硬核的版本（逐日/按战区/按军政金融分类），我可以继续扩展。</p>
+    <p>A 档：每天 0~3 条，只保留最关键节点，优先收录「特朗普表态/美方条件」与「伊朗官方表态/谈判口径」。</p>
     <p class="pill">最后更新：2026-03-27（Asia/Shanghai） · 说明：部分来源为二手汇总（如维基），已尽量配上权威媒体/机构链接作交叉验证。</p>
   </header>
 
@@ -61,8 +61,8 @@ const events = [
   },
   {
     date: '2026-02-28',
-    title: '伊朗总统表态“将复仇”并对地区目标发动报复（早期摘要）',
-    desc: 'CFR 文章摘引伊朗总统关于“复仇”的表态，并概述伊朗对以色列及多个海湾国家/美军设施的报复性导弹攻击。',
+    title: '伊朗总统：将“复仇”；伊朗对地区目标发动报复（CFR 摘要）',
+    desc: 'CFR 文章摘引伊朗总统关于“复仇”的表态，并概述伊朗对以色列及多个海湾国家/美军设施的报复性攻击。',
     sources: [
       {name:'CFR：Gauging the Impact of Massive U.S.-Israeli Strikes on Iran', url:'https://www.cfr.org/articles/gauging-the-impact-of-massive-u-s-israeli-strikes-on-iran'}
     ]
@@ -70,14 +70,14 @@ const events = [
   {
     date: '2026-03-08',
     title: '伊朗宣布由 Mojtaba Khamenei 继任最高领袖；特朗普公开评论',
-    desc: '卫报报道：伊朗负责遴选最高领袖的机构宣布由 Mojtaba Khamenei 继任，并出现多方效忠声明；报道称特朗普称该人选“不可接受”，并表示若不获其认可“不会维持很久”等表态。',
+    desc: '卫报报道：负责遴选最高领袖的机构宣布由 Mojtaba Khamenei 继任，并出现多方效忠声明；报道同时转述特朗普对这一人选的公开评论。',
     sources: [
       {name:'The Guardian（3/08）', url:'https://www.theguardian.com/world/2026/mar/08/ali-khameneis-son-mojtaba-chosen-as-irans-new-supreme-leader'}
     ]
   },
   {
     date: '2026-03-11',
-    title: 'IEA 宣布集体释油 4 亿桶（称霍尔木兹航道油流量降至战前 10% 以下）',
+    title: 'IEA 宣布集体释油 4 亿桶：称霍尔木兹油流量降至战前 10% 以下',
     desc: 'IEA 新闻稿称，为应对中东冲突导致的供应扰动，32 个成员国同意向市场投放 4 亿桶应急储备；并称冲突阻碍霍尔木兹海峡油流，出口量降至战前的 10% 以下。',
     sources: [
       {name:'IEA News（释油新闻稿）', url:'https://www.iea.org/news/iea-member-countries-to-carry-out-largest-ever-oil-stock-release-amid-market-disruptions-from-middle-east-conflict'}
@@ -85,27 +85,38 @@ const events = [
   },
   {
     date: '2026-03-11',
-    title: '人权组织要求就“米纳卜学校遭袭”问责；指向“过时情报/预防义务”问题',
-    desc: '大赦国际发布调查称，2/28 米纳卜一所学校遭袭造成大量儿童死亡，呼吁透明调查与问责，并提到媒体报道显示美方初步调查指向“依赖过时数据”。',
+    title: '大赦国际：要求就“米纳卜学校遭袭”问责，指向“过时情报/预防义务”',
+    desc: '大赦国际称 2/28 米纳卜一所学校遭袭造成大量儿童死亡，呼吁透明调查与问责，并提到媒体报道显示美方初步调查指向“依赖过时数据”。',
     sources: [
-      {name:'Amnesty International（3/11 左右发布）', url:'https://www.amnesty.org/en/latest/news/2026/03/usa-iran-those-responsible-for-deadly-and-unlawful-us-strike-on-school-that-killed-over-100-children-must-be-held-accountable/'}
-    ]
-  },
-  {
-    date: '2026-03-12',
-    title: '美军 KC-135 加油机在伊拉克西部坠毁（多家媒体报道）',
-    desc: '多家媒体报道美军一架 KC-135 在伊拉克西部坠毁、造成人员死亡，被计入本轮冲突相关损失与舆论讨论。',
-    sources: [
-      {name:'AP：Iran hub（相关聚合）', url:'https://apnews.com/hub/iran'}
+      {name:'Amnesty International', url:'https://www.amnesty.org/en/latest/news/2026/03/usa-iran-those-responsible-for-deadly-and-unlawful-us-strike-on-school-that-killed-over-100-children-must-be-held-accountable/'}
     ]
   },
   {
     date: '2026-03-25',
-    title: 'Reuters 相关报道：海湾国家在联合国场合称伊朗袭击构成“严重威胁/生存性威胁”',
+    title: 'Reuters 相关报道：海湾国家在联合国场合称伊朗袭击构成“生存性威胁”',
     desc: '多家媒体转载 Reuters：海湾国家在联合国人权理事会表态称伊朗对其基础设施袭击构成严重威胁，并讨论相关决议与人道法风险。',
     sources: [
       {name:'StreetInsider（Reuters 转载）', url:'https://www.streetinsider.com/Reuters/Iranian+strikes+pose+%E2%80%98existential+threat%E2%80%99%2C+Gulf+states+tell+UN/26212791.html'},
       {name:'CFR Conflict Tracker（背景）', url:'https://www.cfr.org/global-conflict-tracker/conflict/confrontation-between-united-states-and-iran'}
+    ]
+  },
+  {
+    date: '2026-03-26',
+    title: '特朗普延后“打击伊朗能源设施”期限至 4/6；称谈判“进展很好”',
+    desc: '多家媒体报道特朗普称应伊朗方面请求，将对伊朗能源设施的打击推迟 10 天至 4/6，并称谈判“进展很好”；同时又发出“尽快认真谈，否则为时已晚”等警告。',
+    sources: [
+      {name:'Los Angeles Times（3/26）', url:'https://www.latimes.com/world-nation/story/2026-03-26/trump-projects-confidence-claims-iran-is-begging-for-deal-but-war-exit-remains-murky'},
+      {name:'The Guardian（3/26）', url:'https://www.theguardian.com/world/2026/mar/26/donald-trump-urges-iran-end-war-or-face-assassinations'},
+      {name:'The Hindu（3/27 发布，回顾 3/26 表态）', url:'https://www.thehindu.com/news/international/trump-extends-deadline-for-iran-to-open-strait-of-hormuz-to-april-6/article70790968.ece'}
+    ]
+  },
+  {
+    date: '2026-03-26',
+    title: '伊朗外长称未就停战谈判；美方通过巴基斯坦转交“15点清单”（PBS/AP）',
+    desc: 'PBS 引述报道：美方通过巴基斯坦转交一份“15点行动清单/框架”；伊朗外长阿拉格齐称并未就结束战争进行谈判，也不打算谈；伊朗媒体称另有自身提案/要求。',
+    sources: [
+      {name:'PBS（转引 AP 报道）', url:'https://www.pbs.org/newshour/world/iran-and-the-u-s-harden-their-positions-as-tehran-tightens-its-grip-on-the-strait-of-hormuz'},
+      {name:'KSL（转引 Reuters）', url:'https://www.ksl.com/article/51473192/iran-sees-us-peace-plan-as-one-sided-as-trump-presses-for-deal'}
     ]
   },
   {
@@ -119,7 +130,7 @@ const events = [
   {
     date: '2026-03-26',
     title: 'CFR 更新：冲突态势、人道与能源冲击的“骨架摘要”',
-    desc: 'CFR 在 3/26 更新中汇总冲突爆发、报复行动、人道与能源冲击等关键脉络，适合作为时间轴底座继续逐日补齐（尤其是美方与伊朗方面表态）。',
+    desc: 'CFR 在 3/26 更新中汇总冲突爆发、报复行动、人道与能源冲击等关键脉络（适合作为后续逐日补齐的底座）。',
     sources: [
       {name:'CFR Conflict Tracker（Updated Mar 26, 2026）', url:'https://www.cfr.org/global-conflict-tracker/conflict/confrontation-between-united-states-and-iran'}
     ]
