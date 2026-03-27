@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>美国-以色列-伊朗冲突时间轴（自 2026-02-28 起）</title>
+  <style>
+    :root{--bg:#0b0f14;--card:#121826;--text:#e6edf3;--muted:#9aa4b2;--line:#263041;--link:#7dd3fc;--tag:#1f2a44;}
+    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial,"Noto Sans","PingFang SC","Microsoft YaHei";background:var(--bg);color:var(--text);}
+    header{padding:28px 18px 12px;max-width:980px;margin:0 auto;}
+    h1{font-size:22px;margin:0 0 8px;}
+    p{margin:6px 0;color:var(--muted);line-height:1.55}
+    .wrap{max-width:980px;margin:0 auto;padding:0 18px 42px;}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0 18px;}
+    input{background:var(--card);border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:10px;min-width:260px;outline:none;}
+    .pill{font-size:12px;color:var(--muted);background:var(--tag);border:1px solid var(--line);padding:6px 10px;border-radius:999px;}
+    .timeline{border-left:2px solid var(--line);padding-left:18px;}
+    .item{position:relative;padding:14px 14px 14px 14px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:14px;}
+    .item:before{content:"";position:absolute;left:-27px;top:22px;width:10px;height:10px;border-radius:50%;background:#60a5fa;border:2px solid var(--bg);}
+    .date{font-weight:700;font-size:13px;letter-spacing:.2px;}
+    .title{margin:6px 0 8px;font-size:16px;font-weight:650;}
+    .desc{margin:0;color:var(--muted);}
+    .sources{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;}
+    a{color:var(--link);text-decoration:none}
+    a:hover{text-decoration:underline}
+    footer{max-width:980px;margin:0 auto;padding:12px 18px 40px;color:var(--muted);font-size:12px;line-height:1.5}
+    code{background:#0f1624;border:1px solid var(--line);padding:2px 6px;border-radius:8px;color:#cbd5e1}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>美国-以色列-伊朗冲突时间轴（自 2026-02-28 起）</h1>
+    <p>这是基于公开报道的“重大事件”梳理版（便于快速回看）。如果你要更硬核的版本（逐日/按战区/按军政金融分类），我可以继续扩展。</p>
+    <p class="pill">最后更新：2026-03-27（Asia/Shanghai） · 说明：部分来源为二手汇总（如维基），已尽量配上权威媒体/机构链接作交叉验证。</p>
+  </header>
+
+  <div class="wrap">
+    <div class="controls">
+      <input id="q" placeholder="搜索关键词（例：霍尔木兹 / Khamenei / UNHCR）" />
+      <span class="pill" id="count"></span>
+    </div>
+
+    <div class="timeline" id="timeline"></div>
+  </div>
+
+  <footer>
+    <div>数据来源（示例）：CFR Conflict Tracker、Reuters 转载、NYT 调查报道、AP/CBS/PBS 等、以及维基条目用于聚合索引。</div>
+    <div>想发布到公网：可以直接把本文件放到你的任意静态托管（Nginx / GitHub Pages / Cloudflare Pages）。</div>
+  </footer>
+
+<script>
+const events = [
+  {
+    date: '2026-02-28',
+    title: '美以对伊朗发动大规模打击；特朗普称哈梅内伊被杀、行动将持续',
+    desc: 'CBS News 引述特朗普表态称伊朗最高领袖阿里·哈梅内伊在美以行动中死亡，并称轰炸将持续以达成目标；CFR 将 2/28 作为冲突爆发起点。',
+    sources: [
+      {name:'CBS News（2/28 更新）', url:'https://www.cbsnews.com/news/ayatollah-khamenei-dead-iranian-supreme-leader-us-israel-military-mission/'},
+      {name:'CFR Conflict Tracker（Updated Mar 26, 2026）', url:'https://www.cfr.org/global-conflict-tracker/conflict/confrontation-between-united-states-and-iran'}
+    ]
+  },
+  {
+    date: '2026-02-28',
+    title: '伊朗总统表态“将复仇”并对地区目标发动报复（早期摘要）',
+    desc: 'CFR 文章摘引伊朗总统关于“复仇”的表态，并概述伊朗对以色列及多个海湾国家/美军设施的报复性导弹攻击。',
+    sources: [
+      {name:'CFR：Gauging the Impact of Massive U.S.-Israeli Strikes on Iran', url:'https://www.cfr.org/articles/gauging-the-impact-of-massive-u-s-israeli-strikes-on-iran'}
+    ]
+  },
+  {
+    date: '2026-03-08',
+    title: '伊朗宣布由 Mojtaba Khamenei 继任最高领袖；特朗普公开评论',
+    desc: '卫报报道：伊朗负责遴选最高领袖的机构宣布由 Mojtaba Khamenei 继任，并出现多方效忠声明；报道称特朗普称该人选“不可接受”，并表示若不获其认可“不会维持很久”等表态。',
+    sources: [
+      {name:'The Guardian（3/08）', url:'https://www.theguardian.com/world/2026/mar/08/ali-khameneis-son-mojtaba-chosen-as-irans-new-supreme-leader'}
+    ]
+  },
+  {
+    date: '2026-03-11',
+    title: 'IEA 宣布集体释油 4 亿桶（称霍尔木兹航道油流量降至战前 10% 以下）',
+    desc: 'IEA 新闻稿称，为应对中东冲突导致的供应扰动，32 个成员国同意向市场投放 4 亿桶应急储备；并称冲突阻碍霍尔木兹海峡油流，出口量降至战前的 10% 以下。',
+    sources: [
+      {name:'IEA News（释油新闻稿）', url:'https://www.iea.org/news/iea-member-countries-to-carry-out-largest-ever-oil-stock-release-amid-market-disruptions-from-middle-east-conflict'}
+    ]
+  },
+  {
+    date: '2026-03-11',
+    title: '人权组织要求就“米纳卜学校遭袭”问责；指向“过时情报/预防义务”问题',
+    desc: '大赦国际发布调查称，2/28 米纳卜一所学校遭袭造成大量儿童死亡，呼吁透明调查与问责，并提到媒体报道显示美方初步调查指向“依赖过时数据”。',
+    sources: [
+      {name:'Amnesty International（3/11 左右发布）', url:'https://www.amnesty.org/en/latest/news/2026/03/usa-iran-those-responsible-for-deadly-and-unlawful-us-strike-on-school-that-killed-over-100-children-must-be-held-accountable/'}
+    ]
+  },
+  {
+    date: '2026-03-12',
+    title: '美军 KC-135 加油机在伊拉克西部坠毁（多家媒体报道）',
+    desc: '多家媒体报道美军一架 KC-135 在伊拉克西部坠毁、造成人员死亡，被计入本轮冲突相关损失与舆论讨论。',
+    sources: [
+      {name:'AP：Iran hub（相关聚合）', url:'https://apnews.com/hub/iran'}
+    ]
+  },
+  {
+    date: '2026-03-25',
+    title: 'Reuters 相关报道：海湾国家在联合国场合称伊朗袭击构成“严重威胁/生存性威胁”',
+    desc: '多家媒体转载 Reuters：海湾国家在联合国人权理事会表态称伊朗对其基础设施袭击构成严重威胁，并讨论相关决议与人道法风险。',
+    sources: [
+      {name:'StreetInsider（Reuters 转载）', url:'https://www.streetinsider.com/Reuters/Iranian+strikes+pose+%E2%80%98existential+threat%E2%80%99%2C+Gulf+states+tell+UN/26212791.html'},
+      {name:'CFR Conflict Tracker（背景）', url:'https://www.cfr.org/global-conflict-tracker/conflict/confrontation-between-united-states-and-iran'}
+    ]
+  },
+  {
+    date: '2026-03-26',
+    title: 'AP：伊朗将对霍尔木兹“事实控制”制度化，出现类似“收费站”机制',
+    desc: 'AP 报道称：船舶通行需进入伊朗领海并接受 IRGC 审核，部分船只为通行付费；航运量较战前下降约 90%，并出现“在伊朗水域北线绕行”等趋势。',
+    sources: [
+      {name:'AP：Iran formalizes its chokehold over the Strait of Hormuz', url:'https://apnews.com/article/iran-hormuz-shipping-tolls-china-de5159966cde7de7b964b3c2c67eec07'}
+    ]
+  },
+  {
+    date: '2026-03-26',
+    title: 'CFR 更新：冲突态势、人道与能源冲击的“骨架摘要”',
+    desc: 'CFR 在 3/26 更新中汇总冲突爆发、报复行动、人道与能源冲击等关键脉络，适合作为时间轴底座继续逐日补齐（尤其是美方与伊朗方面表态）。',
+    sources: [
+      {name:'CFR Conflict Tracker（Updated Mar 26, 2026）', url:'https://www.cfr.org/global-conflict-tracker/conflict/confrontation-between-united-states-and-iran'}
+    ]
+  }
+];
+
+function render(list){
+  const root=document.getElementById('timeline');
+  root.innerHTML='';
+  for(const e of list){
+    const div=document.createElement('div');
+    div.className='item';
+    div.innerHTML=`
+      <div class="date">${e.date}</div>
+      <div class="title">${escapeHtml(e.title)}</div>
+      <p class="desc">${escapeHtml(e.desc)}</p>
+      <div class="sources">${(e.sources||[]).map(s=>`<a href="${s.url}" target="_blank" rel="noopener">${escapeHtml(s.name)}</a>`).join('')}
+      </div>
+    `;
+    root.appendChild(div);
+  }
+  document.getElementById('count').textContent=`${list.length} 条事件`;
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+
+const q=document.getElementById('q');
+q.addEventListener('input', ()=>{
+  const s=q.value.trim().toLowerCase();
+  if(!s) return render(events);
+  const filtered=events.filter(e=>
+    (e.date+" "+e.title+" "+e.desc+" "+(e.sources||[]).map(x=>x.name).join(' ')).toLowerCase().includes(s)
+  );
+  render(filtered);
+});
+
+render(events);
+</script>
+</body>
+</html>
