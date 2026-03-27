@@ -237,7 +237,6 @@
   <div class="wrap">
     <div class="controls">
       <input id="q" placeholder="搜索（例：Trump / Araghchi / UN / Hormuz）" />
-      <span class="pill" id="count"></span>
       <label class="pill"><input type="checkbox" class="tagf" value="Trump" checked> Trump</label>
       <label class="pill"><input type="checkbox" class="tagf" value="Iran" checked> Iran</label>
       <label class="pill"><input type="checkbox" class="tagf" value="Israel" checked> Israel</label>
@@ -552,7 +551,6 @@ function render(list){
     root.appendChild(details);
   }
 
-  document.getElementById('count').textContent=`${total} 条事件（当前筛选）`;
 }
 
 function escapeHtml(str){
