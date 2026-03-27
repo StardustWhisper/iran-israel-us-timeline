@@ -30,7 +30,7 @@
 <body>
   <header>
     <h1>美国-以色列-伊朗冲突时间轴（自 2026-02-28 起）</h1>
-    <p>A 档：每天 0~3 条，只保留最关键节点，优先收录「特朗普表态/美方条件」与「伊朗官方表态/谈判口径」。</p>
+    <p>当前口径：在保证“重点关注 Trump/伊朗官方表态”的前提下，补充以色列、海湾国家、联合国及关键斡旋方（如巴基斯坦）的主要公开表态与里程碑。</p>
     <p class="pill">最后更新：2026-03-27（Asia/Shanghai） · 说明：部分来源为二手汇总（如维基），已尽量配上权威媒体/机构链接作交叉验证。</p>
   </header>
 
@@ -50,6 +50,7 @@
 
 <script>
 const events = [
+  // 2026-02-28（开战日）
   {
     date: '2026-02-28',
     title: '美以对伊朗发动大规模打击；特朗普称哈梅内伊被杀、行动将持续',
@@ -67,6 +68,8 @@ const events = [
       {name:'CFR：Gauging the Impact of Massive U.S.-Israeli Strikes on Iran', url:'https://www.cfr.org/articles/gauging-the-impact-of-massive-u-s-israeli-strikes-on-iran'}
     ]
   },
+
+  // 2026-03-08（伊朗最高领袖更迭）
   {
     date: '2026-03-08',
     title: '伊朗宣布由 Mojtaba Khamenei 继任最高领袖；特朗普公开评论',
@@ -75,6 +78,8 @@ const events = [
       {name:'The Guardian（3/08）', url:'https://www.theguardian.com/world/2026/mar/08/ali-khameneis-son-mojtaba-chosen-as-irans-new-supreme-leader'}
     ]
   },
+
+  // 2026-03-11（能源冲击）
   {
     date: '2026-03-11',
     title: 'IEA 宣布集体释油 4 亿桶：称霍尔木兹油流量降至战前 10% 以下',
@@ -83,6 +88,8 @@ const events = [
       {name:'IEA News（释油新闻稿）', url:'https://www.iea.org/news/iea-member-countries-to-carry-out-largest-ever-oil-stock-release-amid-market-disruptions-from-middle-east-conflict'}
     ]
   },
+
+  // 2026-03-11（人道与问责讨论）
   {
     date: '2026-03-11',
     title: '大赦国际：要求就“米纳卜学校遭袭”问责，指向“过时情报/预防义务”',
@@ -91,6 +98,8 @@ const events = [
       {name:'Amnesty International', url:'https://www.amnesty.org/en/latest/news/2026/03/usa-iran-those-responsible-for-deadly-and-unlawful-us-strike-on-school-that-killed-over-100-children-must-be-held-accountable/'}
     ]
   },
+
+  // 2026-03-25（联合国场合的区域表态）
   {
     date: '2026-03-25',
     title: 'Reuters 相关报道：海湾国家在联合国场合称伊朗袭击构成“生存性威胁”',
@@ -100,6 +109,8 @@ const events = [
       {name:'CFR Conflict Tracker（背景）', url:'https://www.cfr.org/global-conflict-tracker/conflict/confrontation-between-united-states-and-iran'}
     ]
   },
+
+  // 2026-03-26（表态密集：美方、伊方、海湾、以方）
   {
     date: '2026-03-26',
     title: '特朗普延后“打击伊朗能源设施”期限至 4/6；称谈判“进展很好”',
@@ -112,11 +123,19 @@ const events = [
   },
   {
     date: '2026-03-26',
-    title: '伊朗外长称未就停战谈判；美方通过巴基斯坦转交“15点清单”（PBS/AP）',
-    desc: 'PBS 引述报道：美方通过巴基斯坦转交一份“15点行动清单/框架”；伊朗外长阿拉格齐称并未就结束战争进行谈判，也不打算谈；伊朗媒体称另有自身提案/要求。',
+    title: '伊朗外长称未就停战谈判；美方经巴基斯坦转交“15点清单”（PBS/AP）',
+    desc: 'PBS 引述报道：美方经巴基斯坦转交一份“15点行动清单/框架”；伊朗外长阿拉格齐称并未就结束战争进行谈判，也不打算谈；伊朗媒体称另有自身提案/要求。',
     sources: [
       {name:'PBS（转引 AP 报道）', url:'https://www.pbs.org/newshour/world/iran-and-the-u-s-harden-their-positions-as-tehran-tightens-its-grip-on-the-strait-of-hormuz'},
       {name:'KSL（转引 Reuters）', url:'https://www.ksl.com/article/51473192/iran-sees-us-peace-plan-as-one-sided-as-trump-presses-for-deal'}
+    ]
+  },
+  {
+    date: '2026-03-26',
+    title: '海合会秘书长：伊朗对过航船只“收费/收通行费”',
+    desc: 'PBS 报道提到：海合会秘书长称伊朗正对船只安全通行收取费用；并与“谈判/停火条件、霍尔木兹通航恢复”议题绑定。',
+    sources: [
+      {name:'PBS（转引 AP 报道）', url:'https://www.pbs.org/newshour/world/iran-and-the-u-s-harden-their-positions-as-tehran-tightens-its-grip-on-the-strait-of-hormuz'}
     ]
   },
   {
@@ -129,7 +148,33 @@ const events = [
   },
   {
     date: '2026-03-26',
-    title: 'CFR 更新：冲突态势、人道与能源冲击的“骨架摘要”',
+    title: '阿联酋 ADNOC 负责人称封锁/武器化霍尔木兹为“经济恐怖主义”（AP 引述）',
+    desc: 'AP 报道引述 ADNOC 负责人 Sultan al-Jaber 表态，称“武器化霍尔木兹海峡”会让所有消费者为之买单，并用“economic terrorism”形容其对全球经济的冲击。',
+    sources: [
+      {name:'AP：Iran formalizes its chokehold over the Strait of Hormuz', url:'https://apnews.com/article/iran-hormuz-shipping-tolls-china-de5159966cde7de7b964b3c2c67eec07'}
+    ]
+  },
+  {
+    date: '2026-03-26',
+    title: '以色列称打击并“清除”伊朗革命卫队海军指挥官等（以方表态）',
+    desc: '多家媒体报道以方称在打击中“清除/击毙”伊朗革命卫队海军指挥官等关键人物；伊朗方面并非总会立即承认相关说法。',
+    sources: [
+      {name:'The Guardian（3/26）', url:'https://www.theguardian.com/world/2026/mar/26/donald-trump-urges-iran-end-war-or-face-assassinations'},
+      {name:'PBS（转引 AP 报道）', url:'https://www.pbs.org/newshour/world/iran-and-the-u-s-harden-their-positions-as-tehran-tightens-its-grip-on-the-strait-of-hormuz'}
+    ]
+  },
+  {
+    date: '2026-03-26',
+    title: '特朗普批评北约盟友“未提供帮助”等（盟友维度表态）',
+    desc: '卫报报道提到：特朗普在一系列公开表态中再次批评北约盟友在冲突中“没有帮助”，并与其“美国不需要盟友/但也不会忘记”的叙事相互交织。',
+    sources: [
+      {name:'The Guardian（3/26）', url:'https://www.theguardian.com/world/2026/mar/26/donald-trump-urges-iran-end-war-or-face-assassinations'},
+      {name:'Los Angeles Times（3/26）', url:'https://www.latimes.com/world-nation/story/2026-03-26/trump-projects-confidence-claims-iran-is-begging-for-deal-but-war-exit-remains-murky'}
+    ]
+  },
+  {
+    date: '2026-03-26',
+    title: 'CFR 更新：冲突态势、人道与能源冲击的“骨架摘要”（便于继续逐日扩展）',
     desc: 'CFR 在 3/26 更新中汇总冲突爆发、报复行动、人道与能源冲击等关键脉络（适合作为后续逐日补齐的底座）。',
     sources: [
       {name:'CFR Conflict Tracker（Updated Mar 26, 2026）', url:'https://www.cfr.org/global-conflict-tracker/conflict/confrontation-between-united-states-and-iran'}
@@ -147,7 +192,7 @@ function render(list){
       <div class="date">${e.date}</div>
       <div class="title">${escapeHtml(e.title)}</div>
       <p class="desc">${escapeHtml(e.desc)}</p>
-      <div class="sources">${(e.sources||[]).map(s=>`<a href="${s.url}" target="_blank" rel="noopener">${escapeHtml(s.name)}</a>`).join('')}
+      <div class="sources">${(e.sources||[]).map(s=>`<a href="${s.url}" target="_blank" rel="noopener">${escapeHtml(s.name)}</a>`).join(' · ')}
       </div>
     `;
     root.appendChild(div);
