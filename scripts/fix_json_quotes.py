@@ -23,100 +23,66 @@ def _is_valid_json_string_terminator(text, pos):
 
 
 def fix_json_quotes(text):
-    """Fix unescaped quotes inside JSON string values.
+    """Fix JSON with unescaped `"` inside string values.
 
-    Walks the text character by character, tracking depth ({} and []).
-    When we see an opening " (after :, {, [, or comma), we scan forward
-    to find the VALID closing quote — one that is followed by a structural
-    JSON character (, : } ]) or whitespace then structural char.
-    Unescaped quotes that are NOT followed by valid terminators are treated
-    as content and escaped.
+    This is a pragmatic repair pass for a common LLM failure mode:
+    it emits quotes inside a JSON string without escaping them.
+
+    Approach:
+    - Track whether we're *inside* a JSON string.
+    - When inside a string and we see a `"`:
+      - If it looks like a real closing quote (followed by a valid JSON
+        terminator like `, : } ]` after optional whitespace) → keep it.
+      - Otherwise → escape it as `\\"`.
+
+    Note: This is not a full JSON parser; it's designed to be robust for
+    model outputs we control (single JSON object/array responses).
     """
-    result = []
+
+    out = []
     i = 0
     n = len(text)
-    depth = 0  # net { minus } plus [ minus ]
+    in_string = False
+    escaped = False
 
     while i < n:
         c = text[i]
 
-        if c == '{':
-            depth += 1
-            result.append(c)
-            i += 1
-        elif c == '}':
-            depth -= 1
-            result.append(c)
-            i += 1
-        elif c == '[':
-            depth += 1
-            result.append(c)
-            i += 1
-        elif c == ']':
-            depth -= 1
-            result.append(c)
-            i += 1
-        elif c == '"':
-            # Opening a JSON string - find where it should end
-            # Strategy: find the FIRST quote that is followed by a valid
-            # JSON terminator (, : } ] or whitespace+terminator or EOF).
-            # All earlier quotes are content and need escaping.
-            j = i + 1
-            closing_quote = -1
-
-            while j < n:
-                ch = text[j]
-                if ch == '\\':
-                    j += 2
-                    continue
-                if ch == '"':
-                    if _is_valid_json_string_terminator(text, j + 1):
-                        closing_quote = j
-                        break
-                    # Not a valid terminator — this quote is content, skip it
-                    j += 1
-                    continue
-                if ch in ('}', ']') and depth > 0:
-                    # Ran into a structural char without finding a closing quote
-                    break
-                j += 1
-
-            if closing_quote > i:
-                # Everything between i+1 and closing_quote is string content
-                raw_content = text[i+1:closing_quote]
-                # Escape any unescaped quotes in raw content
-                fixed = []
-                k = 0
-                while k < len(raw_content):
-                    if raw_content[k] == '\\' and k + 1 < len(raw_content):
-                        fixed.append(raw_content[k:k+2])
-                        k += 2
-                    elif raw_content[k] == '"':
-                        fixed.append('\\"')
-                        k += 1
-                    else:
-                        fixed.append(raw_content[k])
-                        k += 1
-                result.append('"')
-                result.append(''.join(fixed))
-                result.append('"')
-                i = closing_quote + 1
+        if not in_string:
+            if c == '"':
+                in_string = True
+                out.append(c)
             else:
-                # No closing quote found — leave as-is
-                result.append(c)
-                i += 1
-        elif c == '\\':
-            if i + 1 < n:
-                result.append(text[i:i+2])
-                i += 2
-            else:
-                result.append(c)
-                i += 1
-        else:
-            result.append(c)
+                out.append(c)
             i += 1
+            continue
 
-    return ''.join(result)
+        # in_string
+        if escaped:
+            out.append(c)
+            escaped = False
+            i += 1
+            continue
+
+        if c == '\\':
+            out.append(c)
+            escaped = True
+            i += 1
+            continue
+
+        if c == '"':
+            if _is_valid_json_string_terminator(text, i + 1):
+                in_string = False
+                out.append(c)
+            else:
+                out.append('\\"')
+            i += 1
+            continue
+
+        out.append(c)
+        i += 1
+
+    return ''.join(out)
 
 
 def parse_messy_json(raw_text):

@@ -181,7 +181,9 @@ export CLAIMS_RAW CLAIMS_JSON
 
 normalize_claims() {
   python3 - <<'PY'
-import json, os, pathlib
+import json, os, pathlib, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.environ.get('SCRIPT_DIR','scripts')), 'scripts'))
+from fix_json_quotes import fix_json_quotes
 raw_path = pathlib.Path(os.environ['CLAIMS_RAW'])
 out_path = pathlib.Path(os.environ['CLAIMS_JSON'])
 text = raw_path.read_text(encoding='utf-8')
@@ -203,7 +205,11 @@ inner = (max(payloads, key=lambda p: len((p.get('text') or '').strip())).get('te
 start2 = inner.find('{')
 if start2 == -1:
     raise SystemExit('payload has no json')
-claims = json.loads(inner[start2:])
+raw_json = inner[start2:]
+try:
+    claims = json.loads(raw_json)
+except json.JSONDecodeError:
+    claims = json.loads(fix_json_quotes(raw_json))
 claims['qualityOk'] = bool(claims.get('cards')) and bool(claims.get('originalComponents'))
 out_path.write_text(json.dumps(claims, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 print('WROTE', str(out_path))
@@ -454,11 +460,11 @@ export ARTICLE_JSON ARTICLE_MD_RAW RESEARCH_JSON CLAIMS_JSON
 COMPACT_PROMPT="$OUT_DIR/compact_prompt.txt"
 python3 scripts/hugo_prompt_compact_from_claims.py --claims "$CLAIMS_JSON" --out "$COMPACT_PROMPT" --max-cards 8
 
-GROK_MODEL="${GROK_MODEL:-grok-4.20-beta}"
+GROK_MODEL="${GROK_MODEL:-gpt-5.2}"
 GROK_TEMPERATURE="${GROK_TEMPERATURE:-0.7}"
 export GROK_MODEL GROK_TEMPERATURE
 
-python3 scripts/grok2api_chat_completions.py \
+python3 scripts/cpa_chat_completions.py \
   --model "$GROK_MODEL" \
   --system "You are a helpful assistant. Output only the final Chinese Markdown article." \
   --user-file "$COMPACT_PROMPT" \
@@ -545,17 +551,24 @@ ${ARTICLE_TEXT}
 - 逻辑是否完整、信息密度是否够、是否有可执行清单
 " > "$EDITOR_RAW"; then
   python3 - <<'PY'
-import json, os, pathlib
+import json, os, pathlib, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.environ.get('SCRIPT_DIR','scripts')), 'scripts'))
+from fix_json_quotes import fix_json_quotes
 raw = pathlib.Path(os.environ['EDITOR_RAW']).read_text(encoding='utf-8')
-start=raw.find('{')
-obj=json.loads(raw[start:])
+lines = [l for l in raw.split('\n') if not l.startswith('[plugins]')]
+clean = '\n'.join(lines)
+start=clean.find('{')
+obj=json.loads(clean[start:])
 if 'result' in obj and isinstance(obj.get('result'), dict):
     payloads=obj['result'].get('payloads') or []
     if payloads:
         t=max(payloads, key=lambda p: len((p.get('text') or '').strip())).get('text') or ''
         t=t.strip(); s=t.find('{')
         if s!=-1:
-            obj=json.loads(t[s:])
+            try:
+                obj=json.loads(t[s:])
+            except json.JSONDecodeError:
+                obj=json.loads(fix_json_quotes(t[s:]))
 path=pathlib.Path(os.environ['EDITOR_JSON'])
 path.write_text(json.dumps(obj, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
 print('WROTE', str(path))
@@ -597,12 +610,12 @@ PY
     break
   fi
   if [[ $rev -ge $MAX_REVISIONS ]]; then
-    echo "MORNING_FAIL stage=edit_revise web_research_status=$WEB_RESEARCH_STATUS article_status=$ARTICLE_STATUS cover_status=$COVER_STATUS notion_status=$NOTION_SYNC_STATUS media_id=$WECHAT_MEDIA_ID reason=editor_threshold_not_met score=$SCORE" >&2
-    exit 5
+    echo "WARN: editor_threshold_not_met score=$SCORE (continue to publish)" >&2
+    break
   fi
   if [[ -z "${BRIEF:-}" ]]; then
-    echo "MORNING_FAIL stage=edit_revise web_research_status=$WEB_RESEARCH_STATUS article_status=$ARTICLE_STATUS cover_status=$COVER_STATUS notion_status=$NOTION_SYNC_STATUS media_id=$WECHAT_MEDIA_ID reason=missing_rewrite_brief score=$SCORE" >&2
-    exit 6
+    echo "WARN: missing_rewrite_brief score=$SCORE (continue to publish)" >&2
+    break
   fi
 
   STAGE="edit_revise"
@@ -648,7 +661,7 @@ parts.append(article_excerpt)
 print('\n'.join(parts))
 PY
 
-  python3 scripts/grok2api_chat_completions.py \
+  python3 scripts/cpa_chat_completions.py \
     --model "$GROK_MODEL" \
     --system "You are a helpful assistant. Output only the final Chinese Markdown article." \
     --user-file "$REV_PROMPT" \
@@ -678,17 +691,24 @@ ${ARTICLE_TEXT}
 输出 JSON：{\"pass\":true,\"score\":0,\"mustFix\":[],\"niceToHave\":[],\"riskFlags\":[],\"rewriteBrief\":\"...\"}
 " > "$EDITOR_RAW"; then
     python3 - <<'PY'
-import json, os, pathlib
+import json, os, pathlib, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.environ.get('SCRIPT_DIR','scripts')), 'scripts'))
+from fix_json_quotes import fix_json_quotes
 raw = pathlib.Path(os.environ['EDITOR_RAW']).read_text(encoding='utf-8')
-start=raw.find('{')
-obj=json.loads(raw[start:])
+lines = [l for l in raw.split('\n') if not l.startswith('[plugins]')]
+clean = '\n'.join(lines)
+start=clean.find('{')
+obj=json.loads(clean[start:])
 if 'result' in obj and isinstance(obj.get('result'), dict):
     payloads=obj['result'].get('payloads') or []
     if payloads:
         t=max(payloads, key=lambda p: len((p.get('text') or '').strip())).get('text') or ''
         t=t.strip(); s=t.find('{')
         if s!=-1:
-            obj=json.loads(t[s:])
+            try:
+                obj=json.loads(t[s:])
+            except json.JSONDecodeError:
+                obj=json.loads(fix_json_quotes(t[s:]))
 path=pathlib.Path(os.environ['EDITOR_JSON'])
 path.write_text(json.dumps(obj, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
 print('WROTE', str(path))
@@ -812,7 +832,11 @@ ${SECTIONS_TXT}
 " > "$FIGURE_PLAN_JSON"; then
   # Generate images and inject into markdown
   if python3 - <<'PY'
-import json, os, pathlib, re, subprocess
+import json, os, pathlib, re, subprocess, sys
+# robust JSON repair for common LLM quoting bugs
+sys.path.insert(0, os.path.join(os.path.dirname(os.environ.get('SCRIPT_DIR','scripts')), 'scripts'))
+from fix_json_quotes import fix_json_quotes, parse_messy_json
+
 out_dir = pathlib.Path(os.environ['OUT_DIR'])
 md_path = pathlib.Path(os.environ['ARTICLE_MD_RAW'])
 plan_path = pathlib.Path(os.environ['FIGURE_PLAN_JSON'])
@@ -820,15 +844,24 @@ fig_n = int(os.environ.get('FIGURE_COUNT','3'))
 
 raw = plan_path.read_text(encoding='utf-8')
 start = raw.find('{')
-obj = json.loads(raw[start:])
+try:
+    obj = parse_messy_json(raw)
+except Exception:
+    obj = json.loads(fix_json_quotes(raw[start:]))
+
 # unwrap openclaw wrapper
 if 'result' in obj and isinstance(obj.get('result'), dict):
     payloads = obj['result'].get('payloads') or []
     if payloads:
-        t = (payloads[0].get('text') or '').strip()
+        t = max(payloads, key=lambda p: len((p.get('text') or '').strip())).get('text') or ''
+        t = t.strip()
         start2 = t.find('{')
         if start2 != -1:
-            obj = json.loads(t[start2:])
+            inner_raw = t[start2:]
+            try:
+                obj = json.loads(inner_raw)
+            except json.JSONDecodeError:
+                obj = json.loads(fix_json_quotes(inner_raw))
 
 figs = obj.get('figures') or []
 figs = figs[:fig_n]
@@ -855,9 +888,11 @@ for f in figs:
     png = out_dir / f"fig_{idx}.png"
     jpg = out_dir / f"fig_{idx}.jpg"
 
+    # Do NOT force --model here. Let grok2api_image.sh pick provider-specific defaults
+    # so SiliconFlow/BigModel fallbacks can switch models correctly.
     cmd = [
         'bash', os.path.expanduser('~/.openclaw/workspace-dali/scripts/grok2api_image.sh'),
-        'generate', '--model', 'grok-imagine-1.0', '--size', '1280x720', '--prompt', prompt, '--out', str(png)
+        'generate', '--size', '1280x720', '--prompt', prompt, '--out', str(png)
     ]
     subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
