@@ -1015,16 +1015,72 @@ fi
 FINAL_MD="$OUT_DIR/article.md"
 export FINAL_MD
 python3 - <<'PY'
-import pathlib, os
+import pathlib, os, re, json
+
 article_md_raw = pathlib.Path(os.environ['ARTICLE_MD_RAW'])
 final_md = pathlib.Path(os.environ['FINAL_MD'])
 raw = article_md_raw.read_text(encoding='utf-8')
+
+MAXLEN = int(os.environ.get('WECHAT_TITLE_MAXLEN', '32'))
+
+
+def has_cjk(s: str) -> bool:
+    return any('\u4e00' <= ch <= '\u9fff' for ch in s)
+
+
+def clean_title(t: str) -> str:
+    t = (t or '').strip()
+    t = re.sub(r'https?://\S+', '', t).strip()
+    t = re.sub(r'\s+', ' ', t).strip()
+
+    # Drop common author/source suffixes
+    for sep in ['｜', '|']:
+        if sep in t:
+            t = t.split(sep)[0].strip()
+
+    # Prefer the clause after colon if it is Chinese and short enough
+    candidates = [t]
+    for sep in ['：', ':', '—', '-', '–']:
+        if sep in t:
+            candidates.append(t.split(sep)[-1].strip())
+
+    for c in candidates:
+        if c and len(c) <= MAXLEN and has_cjk(c):
+            return c
+
+    if not t:
+        return '今日科技科普'
+
+    if len(t) > MAXLEN:
+        t = t[:MAXLEN].rstrip()
+    return t
+
+
+# 1) Try to use our curated title from title.json (二次选题), then env TITLE, then H1.
+title_from_json = ''
+try:
+    p = os.environ.get('TITLE_JSON')
+    if p and pathlib.Path(p).exists():
+        obj = json.load(open(p, 'r', encoding='utf-8'))
+        title_from_json = (obj.get('title') or '').strip()
+except Exception:
+    title_from_json = ''
+
+title_env = (os.environ.get('TITLE') or '').strip()
+
+h1 = ''
+if raw.strip().startswith('#'):
+    h1 = raw.splitlines()[0].lstrip('# ').strip()
+
+chosen = title_from_json or title_env or h1 or '今日科技科普'
+fm_title = clean_title(chosen)
+
 fm = '---\n'
-fm += f"title: {raw.splitlines()[0].lstrip('# ').strip() if raw.strip().startswith('#') else '今日科技科普'}\n"
+fm += f"title: {fm_title}\n"
 fm += 'cover: ./cover.jpg\n'
 fm += '---\n\n'
 final_md.write_text(fm + raw + '\n', encoding='utf-8')
-print('WROTE', str(final_md))
+print('WROTE', str(final_md), 'title_len', len(fm_title))
 PY
 
 # 4) Publish to WeChat drafts
