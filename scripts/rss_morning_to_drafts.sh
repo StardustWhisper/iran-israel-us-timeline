@@ -984,8 +984,9 @@ PY
 fi
 COVER_STATUS="generated"
 
+# Do NOT force --model here. Let grok2api_image.sh pick provider-specific defaults
+# so SiliconFlow/BigModel fallbacks can switch models correctly.
 if ! bash "$HOME/.openclaw/workspace-dali/scripts/grok2api_image.sh" generate \
-  --model grok-imagine-1.0 \
   --size 1792x1024 \
   --prompt "$COVER_PROMPT" \
   --out "$COVER_SRC" \
