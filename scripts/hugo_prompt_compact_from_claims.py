@@ -57,14 +57,14 @@ def main() -> int:
     for s in comps:
         parts.append("- " + s)
     parts.append("")
-    parts.append("反复述规则：")
+    parts.append("反复述规则（必须遵守，目标是写出‘主题驱动’原创专栏，而不是改写某篇文章）：")
     for s in rules:
         parts.append("- " + s)
     parts.append("")
     parts.append("硬性要求：")
     parts.append("- 二级标题(##)必须是自然的问题式/结论式表达，禁止出现这些词：" + "、".join(ban_words))
     parts.append("- 至少包含1段‘读者任务’（让读者回到自己团队做一个小动作）")
-    parts.append("- 至少包含3个可执行清单/检查点（要具体到动作/字段/日志/权限）")
+    parts.append("- 至少包含3个可执行清单/检查点（要具体到动作/字段/日志/权限）；其中至少1个清单必须是你自创的框架（不是来源文章里的列表）")
     parts.append("- 语气：工程化、克制、有判断；不要营销语、不要口号")
     parts.append("- 长度：1800-2400字")
     parts.append("")

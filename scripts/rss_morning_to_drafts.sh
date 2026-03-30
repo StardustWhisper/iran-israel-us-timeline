@@ -227,14 +227,16 @@ for attempt in 1 2; do
   if bash scripts/openclaw_cli.sh agent --agent "$CLAIMS_AGENT" --session-id "$CLAIMS_SESSION_ID" --to +15555550123 --timeout 900 --json --message "你现在不是写文章，而是在搭建【观点卡片（Claim Cards）】。
 
 输入：
-- 二次选题标题：${TITLE}
-- 源标题（仅供定位）：${SOURCE_TITLE}
-- 主参考链接（仅作为事实边界，可浏览但不要照抄）：${URL}
+- 选题标题：${TITLE}
+- 触发标题（仅供参考）：${SOURCE_TITLE}
+- 背景阅读种子链接（来自 top10，可为空；不要复述其结构/句子）：
+${SEED_URLS:-}
 
-任务：
-1) 联网搜索并阅读多方资料（尽量跨 2-3 个来源，允许多语种），把你准备在文中主张的观点拆成 8-12 张卡片。
-2) 每张卡片必须可写成一句“主张句”，并带 1-3 条证据来源（只做内部支撑，最终文章不要放链接）。
-3) 给出 3 个“原创结构件”，用于让文章明显不像新闻复述（例如：检查表、分层模型、决策树、对比表、上线守则）。
+任务（必须以“原创专栏”为目标，不是改写新闻）：
+1) 联网搜索并阅读多方资料（至少 3 个不同站点/来源，允许多语种），把你准备在文中主张的观点拆成 8-12 张卡片。
+2) 每张卡片必须可写成一句“主张句”，并带 1-3 条证据来源（只做内部支撑；最终文章不要放链接）。
+3) 给出 3 个“原创结构件”，用于让文章明显不像新闻复述（例如：验收门槛/检查表/分层模型/决策树/上线守则/回滚方案）。
+4) 给出 4-8 条“反复述规则”，明确禁止沿用任何单篇文章的段落顺序/小标题/措辞。
 
 只输出【严格 JSON】（不要 markdown，不要解释）：
 {
@@ -1100,6 +1102,47 @@ print(m.group(1) if m else '')
 PY
 )
 fi
+
+# 4b) Auto-cleanup is handled by the global trap (see top of file)
+
+# 5) Sync to Notion for mobile reading — best effort; failure should not block WeChat draft delivery.
+STAGE="notion_sync"
+NOTION_ARTICLE_DATABASE_ID="${NOTION_ARTICLE_DATABASE_ID:-3188bd97-88dd-8034-ae05-d4c7f2b4b10e}"
+NOTION_SYNC_LOG="$OUT_DIR/notion_sync.json"
+NOTION_SYNC_STATUS="ok"
+if ! python3 "$HOME/.openclaw/workspace/scripts/markdown_to_notion_page.py" \
+  --md "$FINAL_MD" \
+  --database-id "$NOTION_ARTICLE_DATABASE_ID" \
+  --source-url "$URL" \
+  --topic "$TITLE" \
+  --wechat-media-id "$WECHAT_MEDIA_ID" | tee "$NOTION_SYNC_LOG"; then
+  NOTION_SYNC_STATUS="failed"
+  echo "WARN: Notion sync failed; see $NOTION_SYNC_LOG" >&2
+fi
+
+# 6) Publish to Halo (direct) — best effort; do NOT block earlier deliveries.
+# Default: DISABLED to avoid creating "bad drafts" (Halo console 500: snapshot is not a base snapshot).
+# Enable explicitly by setting: HALO_ENABLE=1
+STAGE="halo_publish"
+HALO_SYNC_STATUS="skipped"
+HALO_PUBLISH_LOG="$OUT_DIR/halo_publish.json"
+export HALO_PUBLISH_LOG
+
+# Prefer raw md (no wechat frontmatter)
+if [[ "${HALO_ENABLE:-0}" == "1" ]] && [[ -n "${HALO_BASE_URL:-}" ]] && [[ -n "${HALO_TOKEN:-}" ]]; then
+  HALO_SYNC_STATUS="ok"
+  if ! python3 "$HOME/.openclaw/workspace/scripts/halo_publish_post.py" \
+    --md "$ARTICLE_MD_RAW" \
+    --category "公众号" \
+    --tag tech \
+    > "$HALO_PUBLISH_LOG"; then
+    HALO_SYNC_STATUS="failed"
+    echo "WARN: Halo publish failed; see $HALO_PUBLISH_LOG" >&2
+  fi
+fi
+
+STAGE="done"
+echo "MORNING_OK title=$TITLE url=$URL out=$OUT_DIR media_id=$WECHAT_MEDIA_ID web_research_status=$WEB_RESEARCH_STATUS article_status=$ARTICLE_STATUS cover_status=$COVER_STATUS notion_status=$NOTION_SYNC_STATUS halo_status=$HALO_SYNC_STATUS"
 
 # 4b) Auto-cleanup is handled by the global trap (see top of file)
 
