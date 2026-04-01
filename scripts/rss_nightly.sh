@@ -165,31 +165,32 @@ ${TOP3_LIST}
 " > "$HUGO_PACK_RAW"; then
   # Normalize: extract first JSON object from payload and write to rss/nightly_pack.json
   if python3 - <<'PY'
-import json, pathlib, re
+import json, pathlib, os, sys
+# Ensure workspace/scripts is importable
+sys.path.insert(0, os.path.join(os.path.expanduser('~/.openclaw/workspace'), 'scripts'))
+from fix_json_quotes import parse_messy_json
+
 raw_path = pathlib.Path('rss/_tmp/nightly_hugo_pack_raw.json')
 out_path = pathlib.Path('rss/nightly_pack.json')
 text = raw_path.read_text(encoding='utf-8')
-start = text.find('{')
-if start == -1:
-    raise SystemExit('no JSON object found in HUGO output')
-obj = json.loads(text[start:])
+
+obj = parse_messy_json(text)
+
 # openclaw agent wrapper
 payload_text = ''
 if isinstance(obj, dict) and 'result' in obj and isinstance(obj.get('result'), dict):
     payloads = obj['result'].get('payloads') or []
     if payloads:
-        payload_text = (payloads[0].get('text') or '').strip()
+        payload_text = (max(payloads, key=lambda p: len((p.get('text') or '').strip())).get('text') or '').strip()
 elif isinstance(obj, dict) and 'payloads' in obj:
     payloads = obj.get('payloads') or []
     if payloads:
-        payload_text = (payloads[0].get('text') or '').strip()
+        payload_text = (max(payloads, key=lambda p: len((p.get('text') or '').strip())).get('text') or '').strip()
+
 if not payload_text:
     raise SystemExit('no payload text')
-# payload_text should itself be JSON
-start2 = payload_text.find('{')
-if start2 == -1:
-    raise SystemExit('payload has no JSON')
-pack = json.loads(payload_text[start2:])
+
+pack = parse_messy_json(payload_text)
 out_path.write_text(json.dumps(pack, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 print('WROTE', str(out_path))
 PY

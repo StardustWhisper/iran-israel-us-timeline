@@ -85,25 +85,67 @@ def fix_json_quotes(text):
     return ''.join(out)
 
 
+def _strip_markdown_code_fences(text: str) -> str:
+    """Remove leading/trailing markdown code fences like ```json ... ```.
+
+    LLMs often wrap JSON with fenced blocks even when asked not to.
+    """
+    if not text:
+        return text
+    t = text.strip()
+    if not t.startswith('```'):
+        return text
+
+    # Match ```lang\n ... \n```
+    m = None
+    try:
+        import re
+
+        m = re.match(r"^```[a-zA-Z0-9_-]*\s*\n([\s\S]*?)\n```\s*$", t)
+    except Exception:
+        m = None
+
+    if m:
+        return m.group(1).strip()
+
+    # Fallback: drop first/last fence lines
+    lines = t.splitlines()
+    if len(lines) >= 2 and lines[0].startswith('```') and lines[-1].startswith('```'):
+        return '\n'.join(lines[1:-1]).strip()
+    return text
+
+
 def parse_messy_json(raw_text):
-    """Try to parse JSON from raw CLI output that may have plugin messages prefix."""
+    """Try to parse JSON from raw CLI/agent output.
+
+    Handles:
+    - plugin prefix lines: [plugins] ...
+    - leading/trailing explanations
+    - markdown fenced JSON blocks (```json ... ```)
+    - unescaped quotes inside string values (best-effort repair)
+    """
     lines = raw_text.split('\n')
     clean_lines = [l for l in lines if not l.startswith('[plugins]')]
-    text = '\n'.join(clean_lines)
+    text = '\n'.join(clean_lines).strip()
+
+    # If content is fenced, unwrap first.
+    text = _strip_markdown_code_fences(text)
 
     start = text.find('{')
     if start == -1:
+        # allow arrays too
+        start = text.find('[')
+    if start == -1:
         raise ValueError('no JSON found')
 
-    raw_json = text[start:]
+    raw_json = text[start:].strip()
+    raw_json = _strip_markdown_code_fences(raw_json)
 
     try:
         return json.loads(raw_json)
     except json.JSONDecodeError:
-        pass
-
-    fixed = fix_json_quotes(raw_json)
-    return json.loads(fixed)
+        fixed = fix_json_quotes(raw_json)
+        return json.loads(fixed)
 
 
 if __name__ == '__main__':
