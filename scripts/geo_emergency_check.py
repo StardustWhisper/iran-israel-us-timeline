@@ -17,13 +17,48 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-STATE_PATH = Path("state/geo/emergency_state.json")
+# Resolve paths relative to the workspace root (repo), not the current working directory.
+# This script lives in: <workspace>/scripts/geo_emergency_check.py
+WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
+STATE_PATH = WORKSPACE_ROOT / "state/geo/emergency_state.json"
 STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+
+def find_blogwatcher_bin() -> str:
+    """Return an absolute path to blogwatcher if we can find it.
+
+    Cron/daemon environments often have a minimal PATH, so `blogwatcher` may not be
+    resolvable even when installed.
+    """
+    override = os.environ.get("BLOGWATCHER_BIN")
+    if override and Path(override).exists():
+        return override
+
+    which = shutil.which("blogwatcher")
+    if which:
+        return which
+
+    # Common OpenClaw install layout: npm global under nvm.
+    # Use glob because this is a filesystem pattern, not a pathlib glob relative to WORKSPACE_ROOT.
+    try:
+        import glob
+
+        candidates = []
+        for pattern in (
+            str(Path.home() / ".nvm/versions/node/*/bin/blogwatcher"),
+            "/home/ubuntu/.nvm/versions/node/*/bin/blogwatcher",
+        ):
+            candidates.extend(sorted(glob.glob(pattern)))
+
+        return candidates[-1] if candidates else "blogwatcher"
+    except Exception:
+        return "blogwatcher"
 
 # Very conservative keyword triggers. Tune later.
 TRIGGERS = [
@@ -66,8 +101,9 @@ def main() -> int:
 
     # Get unread articles across all tracked feeds.
     # blogwatcher output is plain text; we match titles and ids.
+    blogwatcher = find_blogwatcher_bin()
     try:
-        txt = run("blogwatcher", "articles", "--all")
+        txt = run(blogwatcher, "articles", "--all")
     except Exception:
         return 0
 
