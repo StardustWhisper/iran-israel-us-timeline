@@ -41,6 +41,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
+import contextlib
+import datetime as _dt
+import os
+
 import urllib.request
 import urllib.error
 
@@ -227,6 +231,30 @@ def delete_token_file(path: Path, dry_run: bool) -> Tuple[bool, str]:
         return False, f"delete failed: {type(e).__name__}: {e}"
 
 
+def _append_log_line(line: str) -> None:
+    """Best-effort append to LOG_PATH if set.
+
+    Cron sometimes runs this script via a shell command with redirection, but OpenClaw
+    exec preflight may refuse that complex invocation. This hook allows self-logging
+    when CPA_401_MONITOR_LOG is provided.
+    """
+    log_path = os.environ.get("CPA_401_MONITOR_LOG")
+    if not log_path:
+        return
+    try:
+        p = Path(log_path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        with p.open("a", encoding="utf-8") as f:
+            f.write(line.rstrip("\n") + "\n")
+    except Exception:
+        return
+
+
+def _stamp(msg: str) -> str:
+    ts = _dt.datetime.now(_dt.timezone.utc).astimezone().isoformat(timespec="seconds")
+    return f"[{ts}] {msg}"
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="CPA token monitor (audit + cleanup for token_* and codex* files).")
     ap.add_argument("--dry-run", action="store_true", help="Do not refresh or delete any token files (compute actions only).")
@@ -357,8 +385,12 @@ def main() -> int:
     should_print = args.audit_only or args.report or args.report_json or did_actions
 
     if should_print:
+        # Build a text form too, so we can self-log even when stdout is redirected by the
+        # OpenClaw cron wrapper (or blocked by exec preflight for complex shell invocations).
         if args.report_json:
-            sys.stdout.write(json.dumps(summary, ensure_ascii=False) + "\n")
+            out_text = json.dumps(summary, ensure_ascii=False)
+            sys.stdout.write(out_text + "\n")
+            _append_log_line(_stamp(out_text))
         else:
             lines: list[str] = []
             header = "CPA token poll"
@@ -397,7 +429,10 @@ def main() -> int:
                 if len(notes) > 50:
                     lines.append(f"- ... +{len(notes)-50}")
 
-            sys.stdout.write("\n".join(lines) + "\n")
+            out_text = "\n".join(lines)
+            sys.stdout.write(out_text + "\n")
+            for ln in out_text.splitlines():
+                _append_log_line(_stamp(ln))
 
     # Exit code semantics: 2 iff we actually took cleanup actions (or would in dry-run?)
     if args.audit_only:
