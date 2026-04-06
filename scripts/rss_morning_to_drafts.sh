@@ -466,14 +466,44 @@ GROK_MODEL="${GROK_MODEL:-gpt-5.2}"
 GROK_TEMPERATURE="${GROK_TEMPERATURE:-0.7}"
 export GROK_MODEL GROK_TEMPERATURE
 
-python3 scripts/cpa_chat_completions.py \
-  --model "$GROK_MODEL" \
-  --system "You are a helpful assistant. Output only the final Chinese Markdown article." \
-  --user-file "$COMPACT_PROMPT" \
-  --temperature "$GROK_TEMPERATURE" \
-  --max-tokens 2400 \
-  --out "$ARTICLE_MD_RAW" \
-  >/dev/null
+# Draft generation (primary: cpa-plus; fallback: zai-coding-plan) — to survive CPA 429 rate limits.
+PRIMARY_DRAFT_PROVIDER="${PRIMARY_DRAFT_PROVIDER:-cpa}"
+FALLBACK_DRAFT_PROVIDER="${FALLBACK_DRAFT_PROVIDER:-zai}"
+ZAI_MODEL="${ZAI_MODEL:-glm-5.1}"
+
+_draft_with_provider() {
+  local provider="$1"
+  if [[ "$provider" == "cpa" ]]; then
+    python3 scripts/cpa_chat_completions.py \
+      --model "$GROK_MODEL" \
+      --system "You are a helpful assistant. Output only the final Chinese Markdown article." \
+      --user-file "$COMPACT_PROMPT" \
+      --temperature "$GROK_TEMPERATURE" \
+      --max-tokens 2400 \
+      --out "$ARTICLE_MD_RAW" \
+      >/dev/null
+  elif [[ "$provider" == "zai" ]]; then
+    python3 scripts/zai_chat_completions.py \
+      --model "$ZAI_MODEL" \
+      --system "You are a helpful assistant. Output only the final Chinese Markdown article." \
+      --user-file "$COMPACT_PROMPT" \
+      --temperature "$GROK_TEMPERATURE" \
+      --max-tokens 2400 \
+      --out "$ARTICLE_MD_RAW" \
+      >/dev/null
+  else
+    echo "Unknown draft provider: $provider" >&2
+    return 2
+  fi
+}
+
+# Try primary; if it fails (most commonly CPA 429), fallback once.
+if _draft_with_provider "$PRIMARY_DRAFT_PROVIDER"; then
+  :
+else
+  echo "WARN: drafting failed on provider=$PRIMARY_DRAFT_PROVIDER, trying fallback=$FALLBACK_DRAFT_PROVIDER" >&2
+  _draft_with_provider "$FALLBACK_DRAFT_PROVIDER"
+fi
 
 ARTICLE_STATUS="generated"
 
@@ -663,14 +693,43 @@ parts.append(article_excerpt)
 print('\n'.join(parts))
 PY
 
-  python3 scripts/cpa_chat_completions.py \
-    --model "$GROK_MODEL" \
-    --system "You are a helpful assistant. Output only the final Chinese Markdown article." \
-    --user-file "$REV_PROMPT" \
-    --temperature "$GROK_TEMPERATURE" \
-    --max-tokens 2400 \
-    --out "$ARTICLE_MD_RAW" \
-    >/dev/null
+  # Revision generation (primary: cpa-plus; fallback: zai-coding-plan)
+  PRIMARY_REV_PROVIDER="${PRIMARY_REV_PROVIDER:-${PRIMARY_DRAFT_PROVIDER:-cpa}}"
+  FALLBACK_REV_PROVIDER="${FALLBACK_REV_PROVIDER:-${FALLBACK_DRAFT_PROVIDER:-zai}}"
+  ZAI_MODEL="${ZAI_MODEL:-glm-5.1}"
+
+  _rev_with_provider() {
+    local provider="$1"
+    if [[ "$provider" == "cpa" ]]; then
+      python3 scripts/cpa_chat_completions.py \
+        --model "$GROK_MODEL" \
+        --system "You are a helpful assistant. Output only the final Chinese Markdown article." \
+        --user-file "$REV_PROMPT" \
+        --temperature "$GROK_TEMPERATURE" \
+        --max-tokens 2400 \
+        --out "$ARTICLE_MD_RAW" \
+        >/dev/null
+    elif [[ "$provider" == "zai" ]]; then
+      python3 scripts/zai_chat_completions.py \
+        --model "$ZAI_MODEL" \
+        --system "You are a helpful assistant. Output only the final Chinese Markdown article." \
+        --user-file "$REV_PROMPT" \
+        --temperature "$GROK_TEMPERATURE" \
+        --max-tokens 2400 \
+        --out "$ARTICLE_MD_RAW" \
+        >/dev/null
+    else
+      echo "Unknown revision provider: $provider" >&2
+      return 2
+    fi
+  }
+
+  if _rev_with_provider "$PRIMARY_REV_PROVIDER"; then
+    :
+  else
+    echo "WARN: revision failed on provider=$PRIMARY_REV_PROVIDER, trying fallback=$FALLBACK_REV_PROVIDER" >&2
+    _rev_with_provider "$FALLBACK_REV_PROVIDER"
+  fi
 
   # re-run editor on revised draft
   STAGE="edit_review"
