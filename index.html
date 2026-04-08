@@ -205,6 +205,8 @@
     .tag-Russia{background: oklch(30% 0.08 320); border-color: oklch(48% 0.14 320)}
     .tag-G7{background: oklch(30% 0.07 270); border-color: oklch(46% 0.12 270)}
     .tag-Mediator{background: oklch(30% 0.07 95); border-color: oklch(46% 0.12 95)}
+    .tag-US{background: oklch(30% 0.08 220); border-color: oklch(48% 0.14 220)}
+    .tag-Economy{background: oklch(30% 0.08 65); border-color: oklch(48% 0.14 65)}
 
     .sources{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;}
 
@@ -231,7 +233,7 @@
   <header>
     <h1>美国-以色列-伊朗冲突时间轴（自 2026-02-28 起）</h1>
     <p>基于公开报道梳理的关键节点时间轴。</p>
-    <p class="pill">最后更新：2026-04-08 05:00（北京时间） · 说明：部分来源为二手汇总（如维基），已尽量配上权威媒体/机构链接作交叉验证。</p>
+    <p class="pill">最后更新：2026-04-08 13:00（北京时间） · 说明：部分来源为二手汇总（如维基），已尽量配上权威媒体/机构链接作交叉验证。</p>
   </header>
 
   <div class="wrap">
@@ -245,6 +247,8 @@
       <label class="pill"><input type="checkbox" class="tagf" value="Russia" checked> Russia</label>
       <label class="pill"><input type="checkbox" class="tagf" value="G7" checked> G7</label>
       <label class="pill"><input type="checkbox" class="tagf" value="Mediator" checked> Mediator</label>
+      <label class="pill"><input type="checkbox" class="tagf" value="US" checked> US</label>
+      <label class="pill"><input type="checkbox" class="tagf" value="Economy" checked> Economy</label>
     </div>
 
     <div class="timeline" id="timeline"></div>
@@ -1528,10 +1532,10 @@ const events = [
     ]
   },
   {
-    date: '2026-03-29',
+    date: '2026-03-30',
     tags: ['Trump','Iran'],
     title: '[Trump] 特朗普对 FT 称"想夺取伊朗石油"、考虑占领哈尔克岛；称"也许我们拿下哈尔克岛，也许不拿下，选择很多"',
-    desc: 'Financial Times 报道：特朗普周日接受采访时表示"我最想做的事是夺取伊朗的石油"，称将考虑占领哈尔克岛（Kharg Island，伊朗石油出口枢纽），并将其与美国控制委内瑞拉石油产业作比较。他表示"也许我们拿下哈尔克岛，也许不拿下，选择很多"，并称伊方"已无防御能力，我们可以轻易拿下"。此表态在美伊通过巴基斯坦即将举行间接谈判之际发出，被视为以军事杠杆施压外交。',
+    desc: 'Financial Times 报道：特朗普周日接受采访时表示"我最想做的事是夺取伊朗的石油"，称将考虑占领哈尔克岛（Kharg Island，伊朗石油出口枢纽），并将其与美国控制委内瑞拉石油产业作比较。他表示"也许我们拿下哈尔克岛，也许不拿下，选择很多"，并称伊方"已无防御能力，我们可以轻易拿下"。该更新在 CBS Live 中的时间戳按北京时间折算为 3/30 早间，故日期按北京时间归入 3/30。',
     sources: [
       {name:'CBS News Live（post-update-9953cadc）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-strait-of-hormuz-oil-tanker-israel/#post-update-9953cadc'},
       {name:'CBS News（3/29 总览）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-strait-of-hormuz-oil-tanker-israel/'},
@@ -3042,28 +3046,28 @@ const events = [
     ]
   },
   {
-    date: '2026-04-05',
+    date: '2026-04-06',
     tags: ['Iran','Israel'],
     title: '[Iran] 伊朗导弹击中海法住宅楼：7 层建筑遭直接命中，4 人受伤',
-    desc: 'CBS/AP 报道：一枚从伊朗发射的导弹直接命中以色列北部城市海法一栋 7 层住宅楼，造成 4 人受伤。以色列军方确认系伊朗导弹。袭击发生在以军警告检测到新一轮伊朗导弹发射数分钟后。这是伊朗对以色列持续远程打击的最新一轮。',
+    desc: 'CBS/AP 报道：一枚从伊朗发射的导弹直接命中以色列北部城市海法一栋 7 层住宅楼，造成 4 人受伤。以色列军方确认系伊朗导弹。袭击发生在以军警告检测到新一轮伊朗导弹发射数分钟后。这是伊朗对以色列持续远程打击的最新一轮。该更新在 CBS Live 中的时间戳按北京时间折算为 4/06 凌晨，故日期按北京时间归入 4/06。',
     sources: [
       {name:'CBS News Live（post-update-0ff0edc4）', url:'https://www.cbsnews.com/live-updates/iran-war-us-trump-warns-more-coming-oil-gas-strait-hormuz/#post-update-0ff0edc4'}
     ]
   },
   {
-    date: '2026-04-05',
+    date: '2026-04-06',
     tags: ['US'],
     title: '[US] CENTCOM：营救行动后美军对伊打击持续',
-    desc: 'CBS News 报道：美国中央司令部（CENTCOM）表示，在完成对被击落 F-15E 机组人员的营救行动后，美军对伊朗的打击仍在继续。表明营救行动与整体军事行动并行推进，并未因搜救而暂停攻势。',
+    desc: 'CBS News 报道：美国中央司令部（CENTCOM）表示，在完成对被击落 F-15E 机组人员的营救行动后，美军对伊朗的打击仍在继续。表明营救行动与整体军事行动并行推进，并未因搜救而暂停攻势。该更新在 CBS Live 中的时间戳按北京时间折算为 4/06 凌晨，故日期按北京时间归入 4/06。',
     sources: [
       {name:'CBS News Live（post-update-e314ba41）', url:'https://www.cbsnews.com/live-updates/iran-war-us-trump-warns-more-coming-oil-gas-strait-hormuz/#post-update-e314ba41'}
     ]
   },
   {
-    date: '2026-04-05',
+    date: '2026-04-06',
     tags: ['Economy'],
     title: '[Economy] 主要产油国宣布增产以弥补霍尔木兹海峡封锁影响',
-    desc: 'CBS News 报道：在霍尔木兹海峡持续封锁之际，主要产油国宣布将提高石油产量，试图缓解因海峡封锁导致的全球供应紧张与价格飙升。此举被视为对伊朗封锁策略的经济对冲。',
+    desc: 'CBS News 报道：在霍尔木兹海峡持续封锁之际，主要产油国宣布将提高石油产量，试图缓解因海峡封锁导致的全球供应紧张与价格飙升。此举被视为对伊朗封锁策略的经济对冲。该更新在 CBS Live 中的时间戳按北京时间折算为 4/06 凌晨，故日期按北京时间归入 4/06。',
     sources: [
       {name:'CBS News Live（post-update-081d120d）', url:'https://www.cbsnews.com/live-updates/iran-war-us-trump-warns-more-coming-oil-gas-strait-hormuz/#post-update-081d120d'}
     ]
@@ -3087,10 +3091,10 @@ const events = [
     ]
   },
   {
-    date: '2026-04-06',
+    date: '2026-04-07',
     tags: ['Trump','Iran'],
     title: '[Trump] 特朗普：只有我能决定停火；称伊朗正在寻求停火',
-    desc: 'CBS News 直播更新称，特朗普在白宫活动期间就停火问题表示“唯一能设定停火的人是我”，并称伊朗因“正在被摧毁”而寻求停火；同时强调自己尚未宣布任何停火。以上按北京时间归入 4/06。',
+    desc: 'CBS News 直播更新称，特朗普在白宫活动期间就停火问题表示“唯一能设定停火的人是我”，并称伊朗因“正在被摧毁”而寻求停火；同时强调自己尚未宣布任何停火。该更新在 CBS Live 中的时间戳按北京时间折算为 4/07 00:20 左右，故日期按北京时间归入 4/07。',
     sources: [
       {name:'CBS News Live（post-update-0b2e1c35）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-deadline-power-plants-bridges-ceasefire-push-air-force-rescue/#post-update-0b2e1c35'}
     ]
@@ -3126,19 +3130,19 @@ const events = [
     ]
   },
   {
-    date: '2026-04-06',
+    date: '2026-04-07',
     tags: ['Iran'],
     title: '[Iran] 伊朗军方发言人：将继续作战，“持续到政治当局认为合适为止”',
-    desc: 'CBS News 直播更新称，伊朗军方发言人对 ISNA 表示，伊朗将继续与美国、以色列作战，“只要政治当局认为合适就会持续”。以上按北京时间归入 4/06。',
+    desc: 'CBS News 直播更新称，伊朗军方发言人对 ISNA 表示，伊朗将继续与美国、以色列作战，“只要政治当局认为合适就会持续”。该更新在 CBS Live 中的时间戳按北京时间折算为 4/07 00:56 左右，故日期按北京时间归入 4/07。',
     sources: [
       {name:'CBS News Live（post-update-1989bd09）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-deadline-power-plants-bridges-ceasefire-push-air-force-rescue/#post-update-1989bd09'}
     ]
   },
   {
-    date: '2026-04-06',
+    date: '2026-04-07',
     tags: ['Israel','US','Iran'],
     title: '[Israel] 内塔尼亚胡称特朗普就美军机组营救致谢；以方称继续打击 IRGC 资金网络',
-    desc: 'CBS News 直播更新称，以色列总理内塔尼亚胡发布视频讲话，称其前一日与特朗普通话，特朗普感谢以色列在营救被击落美军机组行动中的协助；并称以军当天打击摧毁伊朗大型石化设施、并击毙 IRGC 情报部门负责人，以削弱其资金来源。以上按北京时间归入 4/06。',
+    desc: 'CBS News 直播更新称，以色列总理内塔尼亚胡发布视频讲话，称其前一日与特朗普通话，特朗普感谢以色列在营救被击落美军机组行动中的协助；并称以军当天打击摧毁伊朗大型石化设施、并击毙 IRGC 情报部门负责人，以削弱其资金来源。该更新在 CBS Live 中的时间戳按北京时间折算为 4/07 00:43 左右，故日期按北京时间归入 4/07。',
     sources: [
       {name:'CBS News Live（post-update-0bd64590）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-deadline-power-plants-bridges-ceasefire-push-air-force-rescue/#post-update-0bd64590'}
     ]
@@ -3367,7 +3371,7 @@ const events = [
     sources: [
       {name:'CBS News Live（post-update-c656095a）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-deadline-power-plants-bridges-ceasefire-push-air-force-rescue/#post-update-c656095a'},
       {name:'CBS News Live（post-update-9b477f5b）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-deadline-power-plants-bridges-ceasefire-push-air-force-rescue/#post-update-9b477f5b'},
-      {name:'CBS News Live（post-update-e91b6dfc）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-deadline-power-plants-bridges-ceasefire-push-air-force-rescue/#post-update-e91b6dfc'}
+      {name:'CBS News Live（post-update-e91b6dfc；北京时间为 4/06）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-deadline-power-plants-bridges-ceasefire-push-air-force-rescue/#post-update-e91b6dfc'}
     ]
   },
   {
@@ -3386,6 +3390,78 @@ const events = [
     desc: 'CBS News Live 更新：中情局局长在谈及美军机组营救行动成功时表示，伊朗因此“尴尬并最终受辱（embarrassed and ultimately humiliated）”。该表态被解读为美方在“展示行动能力”层面对伊朗施压的一部分。',
     sources: [
       {name:'CBS News Live（post-update-8b246a8b）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-deadline-power-plants-bridges-ceasefire-push-air-force-rescue/#post-update-8b246a8b'}
+    ]
+  },
+  {
+    date: '2026-04-08',
+    tags: ['Trump','Iran','Mediator'],
+    title: '[Trump/Iran] 特朗普宣布“2 周停火”（以霍尔木兹立即安全开放为条件），称将继续由巴基斯坦斡旋推进谈判',
+    desc: 'CBS News Live 更新：特朗普在社交媒体宣布与伊朗达成“2 周停火”，条件是伊朗“立即、完全、安全”重开霍尔木兹海峡；并称在巴基斯坦斡旋下谈判继续推进。该节点被视为特朗普“周二晚 8 点（美东）最后通牒”前的关键转折点。',
+    sources: [
+      {name:'CBS News Live（post-update41）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-deadline-power-plants-human-chains-israel-train-strikes/#post-update41'}
+    ]
+  },
+  {
+    date: '2026-04-08',
+    tags: ['Iran','Trump'],
+    title: '[Iran] 伊朗外长阿拉格齐声明：若对伊袭击停止，伊朗武装力量将停止“防御行动”；特朗普转发全文未置评',
+    desc: 'CBS News Live 更新：伊朗外长 Seyed Abbas Araghchi 表示，“如果对伊朗的袭击停止，我们强大的武装力量将停止其防御行动”，确认伊方接受临时停火框架并与通航安排相挂钩；特朗普随后在 Truth Social 转发该声明全文但未作评论。',
+    sources: [
+      {name:'CBS News Live（post-update48）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-deadline-power-plants-human-chains-israel-train-strikes/#post-update48'}
+    ]
+  },
+  {
+    date: '2026-04-08',
+    tags: ['Iran','Mediator'],
+    title: '[Iran] 伊朗最高国家安全委员会：10 点和平方案要求之一为美军作战部队撤出地区；称方案经巴基斯坦提交美方',
+    desc: 'CBS News Live 更新：伊朗最高国家安全委员会称其“10 点和平方案”已通过巴基斯坦提交美方，核心条款之一为美军作战部队从地区基地与阵地撤出；伊方将其描述为停火与谈判的框架条件。',
+    sources: [
+      {name:'CBS News Live（post-update44）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-deadline-power-plants-human-chains-israel-train-strikes/#post-update44'}
+    ]
+  },
+  {
+    date: '2026-04-08',
+    tags: ['Iran','Mediator','Trump'],
+    title: '[Mediator] 伊朗称周五在伊斯兰堡启动和平谈判（Pakistan 斡旋）；白宫称“讨论仍在进行”',
+    desc: 'CBS News Live 更新：伊朗最高国家安全委员会称和平谈判将于周五在巴基斯坦伊斯兰堡开启；白宫新闻秘书对 CBS 表示“讨论仍在进行”。该安排与特朗普宣布的“2 周停火”时间窗相匹配。',
+    sources: [
+      {name:'CBS News Live（post-update46）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-deadline-power-plants-human-chains-israel-train-strikes/#post-update46'}
+    ]
+  },
+  {
+    date: '2026-04-08',
+    tags: ['UN','Russia','China'],
+    title: '[UN] 俄中否决“重开霍尔木兹”安理会决议（文本多次被削弱后仍遭否）',
+    desc: 'CBS News Live 更新：在特朗普设定的最后通牒节点前数小时，联合国安理会就一份旨在推动重开霍尔木兹海峡的决议投票；该决议在多次削弱措辞以争取弃权后，仍被俄罗斯与中国否决。',
+    sources: [
+      {name:'CBS News Live（post-update23）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-deadline-power-plants-human-chains-israel-train-strikes/#post-update23'}
+    ]
+  },
+  {
+    date: '2026-04-08',
+    tags: ['Economy'],
+    title: '[Economy] 特朗普宣布停火后油价期货急跌（市场预期霍尔木兹通航风险下降）',
+    desc: 'CBS News Live 更新：特朗普宣布“2 周停火”后，油价期货大幅下挫；市场将其解读为霍尔木兹航运与供给中断风险阶段性下降。',
+    sources: [
+      {name:'CBS News Live（post-update42）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-deadline-power-plants-human-chains-israel-train-strikes/#post-update42'}
+    ]
+  },
+  {
+    date: '2026-04-08',
+    tags: ['Trump','Israel','Mediator'],
+    title: '[Trump] 白宫官员：特朗普与内塔尼亚胡及巴基斯坦陆军参谋长通话，敲定 2 周停火安排',
+    desc: 'CBS News Live 更新：白宫官员称，特朗普与以色列总理内塔尼亚胡、以及巴基斯坦陆军参谋长 Asim Munir 通话，以敲定与伊朗的“2 周停火”安排；体现巴方在该阶段斡旋中的关键角色。',
+    sources: [
+      {name:'CBS News Live（post-update55）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-deadline-power-plants-human-chains-israel-train-strikes/#post-update55'}
+    ]
+  },
+  {
+    date: '2026-04-08',
+    tags: ['Israel'],
+    title: '[Israel] 内塔尼亚胡办公室：与伊朗的停火不包含黎巴嫩方向冲突（Hezbollah）',
+    desc: 'CBS News Live 更新：以色列总理内塔尼亚胡办公室称，以方支持美方与伊朗的 2 周停火，但该停火安排“不包括黎巴嫩”，即不涵盖以军与黎巴嫩真主党相关战事。',
+    sources: [
+      {name:'CBS News Live（post-update56）', url:'https://www.cbsnews.com/live-updates/iran-war-trump-deadline-power-plants-human-chains-israel-train-strikes/#post-update56'}
     ]
   },
 
@@ -3425,7 +3501,7 @@ function render(list){
     for(const e of items){
       const div=document.createElement('div');
       div.className='item';
-      const tagHtml = (e.tags||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('');
+      const tagHtml = (e.tags||[]).map(t=>`<span class="tag ${tagClass(t)}">${escapeHtml(t)}</span>`).join('');
       div.innerHTML=`
         <div class="date">${escapeHtml(e.date)}</div>
         <div class="title">${escapeHtml(e.title)}</div>
@@ -3444,6 +3520,11 @@ function render(list){
 
 function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+
+function tagClass(t){
+  // Keep it safe for className (we only expect simple tag strings like Trump/Iran/UN)
+  return 'tag-' + String(t).replace(/[^A-Za-z0-9_-]/g, '');
 }
 
 const q=document.getElementById('q');
