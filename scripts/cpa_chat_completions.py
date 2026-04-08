@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
-"""Call an OpenAI-compatible /chat/completions endpoint on the zai-coding-plan provider.
+"""Call an OpenAI-compatible /chat/completions endpoint on the cpa-plus provider.
 
 Reads:
-- base URL from ~/.openclaw/openclaw.json provider "zai-coding-plan" baseUrl
-- API key from env (first match wins): BIGMODEL_API_KEY, ZAI_API_KEY, ZHIPU_API_KEY
+- base URL from ~/.openclaw/openclaw.json provider "cpa-plus" baseUrl
+- API key from env: CPA_PLUS_API_KEY (Bearer)
 
-This mirrors scripts/cpa_chat_completions.py so bash pipelines can fallback seamlessly.
+Usage:
+  python3 scripts/cpa_chat_completions.py \
+    --model gpt-5.2 \
+    --system "..." \
+    --user-file /path/to/prompt.txt \
+    --out /path/to/out.md \
+    --temperature 0.7 --max-tokens 2400
+
+Outputs:
+- Writes assistant message content to --out
+- Prints a short JSON summary to stdout
 """
 
 from __future__ import annotations
@@ -22,18 +32,10 @@ def load_base_url() -> str:
     cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
     base = (
         (cfg.get("models", {}).get("providers", {}) or {})
-        .get("zai-coding-plan", {})
+        .get("cpa-plus", {})
         .get("baseUrl", "")
     )
     return str(base).rstrip("/")
-
-
-def load_api_key() -> str:
-    for k in ("BIGMODEL_API_KEY", "ZAI_API_KEY", "ZHIPU_API_KEY"):
-        v = os.environ.get(k, "").strip()
-        if v:
-            return v
-    return ""
 
 
 def main() -> int:
@@ -53,11 +55,11 @@ def main() -> int:
 
     base = load_base_url()
     if not base:
-        raise SystemExit("missing zai-coding-plan baseUrl in ~/.openclaw/openclaw.json")
+        raise SystemExit("missing cpa-plus baseUrl in ~/.openclaw/openclaw.json")
 
-    key = load_api_key()
+    key = os.environ.get("CPA_PLUS_API_KEY", "").strip()
     if not key:
-        raise SystemExit("missing BIGMODEL_API_KEY/ZAI_API_KEY/ZHIPU_API_KEY env")
+        raise SystemExit("missing CPA_PLUS_API_KEY env")
 
     url = base + "/chat/completions"
     payload = {
@@ -96,8 +98,7 @@ def main() -> int:
     msg = (choices[0] or {}).get("message", {}) or {}
     content = (msg.get("content") or "").strip()
 
-    # Some providers (or some configs) may return the main text in `reasoning_content`
-    # with `content` empty. Prefer `content`, but fall back when needed.
+    # Some providers may return main text in `reasoning_content` with empty `content`.
     if not content:
         rc = (msg.get("reasoning_content") or "").strip()
         if rc:
@@ -118,7 +119,6 @@ def main() -> int:
 
     summary = {
         "ok": True,
-        "provider": "zai-coding-plan",
         "model": args.model,
         "out": str(out_path),
         "chars": len(content),
