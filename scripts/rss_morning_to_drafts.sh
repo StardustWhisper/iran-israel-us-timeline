@@ -470,6 +470,8 @@ export GROK_MODEL GROK_TEMPERATURE
 PRIMARY_DRAFT_PROVIDER="${PRIMARY_DRAFT_PROVIDER:-cpa}"
 FALLBACK_DRAFT_PROVIDER="${FALLBACK_DRAFT_PROVIDER:-zai}"
 ZAI_MODEL="${ZAI_MODEL:-glm-5.1}"
+ZAI_TEMPERATURE="${ZAI_TEMPERATURE:-0.7}"
+ZAI_MAX_TOKENS="${ZAI_MAX_TOKENS:-2400}"
 
 _draft_with_provider() {
   local provider="$1"
@@ -487,8 +489,8 @@ _draft_with_provider() {
       --model "$ZAI_MODEL" \
       --system "You are a helpful assistant. Output only the final Chinese Markdown article." \
       --user-file "$COMPACT_PROMPT" \
-      --temperature "$GROK_TEMPERATURE" \
-      --max-tokens 2400 \
+      --temperature "$ZAI_TEMPERATURE" \
+      --max-tokens "$ZAI_MAX_TOKENS" \
       --out "$ARTICLE_MD_RAW" \
       >/dev/null
   else
@@ -676,18 +678,19 @@ article_excerpt = article[:12000]
 ban_words = ['原创结构件','三层台阶','四层架构图','10项检查表','三问决策树','落地动作']
 
 parts = []
-parts.append('你现在要按编辑意见改稿（只输出最终中文Markdown正文，不要解释）。')
+parts.append('你现在要按编辑意见改稿。只输出最终可发布的中文 Markdown 正文：')
+parts.append('- 必须以单个 H1 开头：# 标题')
+parts.append('- 正文必须直接进入内容（禁止出现“分析/规划/提纲/草拟/检查/我将/下面开始”等元信息）')
+parts.append('- 禁止出现任何 URL/参考链接')
+parts.append('- 至少 5 个二级标题（##），且必须是问题式或结论式表达')
+parts.append('- 必须包含：≥3 个结构件内容 + 1 段“读者任务”')
+parts.append('- 语气：工程化、克制、有判断')
+parts.append('- 禁止出现这些词：' + '、'.join(ban_words))
 parts.append('')
 parts.append(f'二次选题标题：{title}')
-parts.append(f'编辑改稿指令：{brief}')
+parts.append(f'编辑改稿指令（必须执行）：{brief}')
 parts.append('')
-parts.append('硬性要求：')
-parts.append('- 不要出现任何URL/参考链接')
-parts.append('- 小标题(##)要像专栏：问题式/结论式；禁止出现这些词：' + '、'.join(ban_words))
-parts.append('- 必须包含：≥3个结构件内容 + 1段读者任务')
-parts.append('- 语气：工程化、克制、有判断')
-parts.append('')
-parts.append('原稿（供你改写，不要照抄句式）：')
+parts.append('原稿（仅供你改写；不要照抄句式，不要保留任何元信息段落）：')
 parts.append(article_excerpt)
 
 print('\n'.join(parts))
@@ -697,6 +700,8 @@ PY
   PRIMARY_REV_PROVIDER="${PRIMARY_REV_PROVIDER:-${PRIMARY_DRAFT_PROVIDER:-cpa}}"
   FALLBACK_REV_PROVIDER="${FALLBACK_REV_PROVIDER:-${FALLBACK_DRAFT_PROVIDER:-zai}}"
   ZAI_MODEL="${ZAI_MODEL:-glm-5.1}"
+  ZAI_TEMPERATURE="${ZAI_TEMPERATURE:-0.7}"
+  ZAI_MAX_TOKENS="${ZAI_MAX_TOKENS:-2400}"
 
   _rev_with_provider() {
     local provider="$1"
@@ -714,8 +719,8 @@ PY
         --model "$ZAI_MODEL" \
         --system "You are a helpful assistant. Output only the final Chinese Markdown article." \
         --user-file "$REV_PROMPT" \
-        --temperature "$GROK_TEMPERATURE" \
-        --max-tokens 2400 \
+        --temperature "$ZAI_TEMPERATURE" \
+        --max-tokens "$ZAI_MAX_TOKENS" \
         --out "$ARTICLE_MD_RAW" \
         >/dev/null
     else

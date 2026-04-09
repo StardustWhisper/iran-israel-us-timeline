@@ -113,6 +113,16 @@ def main() -> int:
     if not content or len(content) < 200:
         raise SystemExit(f"empty_or_too_short_content: {len(content)}")
 
+    # Require the generation to look like a real Markdown article.
+    # Our pipeline expects raw drafts to start with a single H1.
+    import re
+
+    m = re.search(r"(?m)^#\s+\S.+$", content)
+    if m:
+        content = content[m.start() :].strip()
+    else:
+        raise SystemExit("no_h1_title_in_output")
+
     out_path = pathlib.Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(content + "\n", encoding="utf-8")
