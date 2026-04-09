@@ -588,23 +588,40 @@ ${ARTICLE_TEXT}
 import json, os, pathlib, sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.environ.get('SCRIPT_DIR','scripts')), 'scripts'))
 from fix_json_quotes import fix_json_quotes
+
 raw = pathlib.Path(os.environ['EDITOR_RAW']).read_text(encoding='utf-8')
 lines = [l for l in raw.split('\n') if not l.startswith('[plugins]')]
 clean = '\n'.join(lines)
-start=clean.find('{')
-obj=json.loads(clean[start:])
+start = clean.find('{')
+obj = json.loads(clean[start:])
+
+# unwrap openclaw agent wrapper
 if 'result' in obj and isinstance(obj.get('result'), dict):
-    payloads=obj['result'].get('payloads') or []
+    payloads = obj['result'].get('payloads') or []
     if payloads:
-        t=max(payloads, key=lambda p: len((p.get('text') or '').strip())).get('text') or ''
-        t=t.strip(); s=t.find('{')
-        if s!=-1:
+        t = max(payloads, key=lambda p: len((p.get('text') or '').strip())).get('text') or ''
+        t = t.strip()
+        s = t.find('{')
+        if s != -1:
+            raw_json = t[s:]
             try:
-                obj=json.loads(t[s:])
+                obj = json.loads(raw_json)
             except json.JSONDecodeError:
-                obj=json.loads(fix_json_quotes(t[s:]))
-path=pathlib.Path(os.environ['EDITOR_JSON'])
-path.write_text(json.dumps(obj, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+                try:
+                    obj = json.loads(fix_json_quotes(raw_json))
+                except Exception:
+                    # salvage truncated JSON by cutting at last complete brace
+                    last = raw_json.rfind('}')
+                    if last != -1:
+                        try:
+                            obj = json.loads(raw_json[: last + 1])
+                        except Exception:
+                            obj = {'pass': False, 'score': 0, 'mustFix': ['editor_json_truncated'], 'niceToHave': [], 'riskFlags': ['editor_error'], 'rewriteBrief': ''}
+                    else:
+                        obj = {'pass': False, 'score': 0, 'mustFix': ['editor_json_invalid'], 'niceToHave': [], 'riskFlags': ['editor_error'], 'rewriteBrief': ''}
+
+path = pathlib.Path(os.environ['EDITOR_JSON'])
+path.write_text(json.dumps(obj, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 print('WROTE', str(path))
 PY
 else
