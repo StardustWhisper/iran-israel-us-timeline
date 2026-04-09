@@ -714,8 +714,10 @@ print('\n'.join(parts))
 PY
 
   # Revision generation (primary: cpa-plus; fallback: zai-coding-plan)
-  PRIMARY_REV_PROVIDER="${PRIMARY_REV_PROVIDER:-${PRIMARY_DRAFT_PROVIDER:-cpa}}"
-  FALLBACK_REV_PROVIDER="${FALLBACK_REV_PROVIDER:-${FALLBACK_DRAFT_PROVIDER:-zai}}"
+  # IMPORTANT: ZAI/GLM sometimes returns planning text without an H1.
+  # Prefer CPA for revisions by default.
+  PRIMARY_REV_PROVIDER="${PRIMARY_REV_PROVIDER:-cpa}"
+  FALLBACK_REV_PROVIDER="${FALLBACK_REV_PROVIDER:-zai}"
   ZAI_MODEL="${ZAI_MODEL:-glm-5.1}"
   ZAI_TEMPERATURE="${ZAI_TEMPERATURE:-0.7}"
   ZAI_MAX_TOKENS="${ZAI_MAX_TOKENS:-2400}"
