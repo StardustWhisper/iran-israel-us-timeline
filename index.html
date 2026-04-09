@@ -233,7 +233,7 @@
   <header>
     <h1>美国-以色列-伊朗冲突时间轴（自 2026-02-28 起）</h1>
     <p>基于公开报道梳理的关键节点时间轴。</p>
-    <p class="pill">最后更新：2026-04-09 21:00（北京时间） · 说明：部分来源为二手汇总（如维基），已尽量配上权威媒体/机构链接作交叉验证。</p>
+    <p class="pill">最后更新：2026-04-10 05:00（北京时间） · 说明：部分来源为二手汇总（如维基），已尽量配上权威媒体/机构链接作交叉验证。</p>
   </header>
 
   <div class="wrap">
@@ -565,8 +565,8 @@ const events = [
         url: 'https://en.wikipedia.org/wiki/2026_Strait_of_Hormuz_crisis#Closure_of_the_strait'
       },
       {
-        name: 'Reuters（3/10）',
-        url: 'https://www.reuters.com/world/middle-east/us-says-it-destroyed-16-iranian-minelayers-strait-hormuz-2026-03-10/'
+        name: 'Scripps News（转引 Reuters/美方表态，3/10）',
+        url: 'https://www.scrippsnews.com/us-news/iran-war/strait-of-hormuz-reopens-but-us-remains-ready-for-combat'
       }
     ]
   },
@@ -1573,13 +1573,10 @@ const events = [
     desc: 'Reuters/CBS 报道：伊朗关联黑客组织 Handala HackTeam 宣称已入侵 FBI 局长 Patel 的个人 Gmail 邮箱，并在网上公开个人照片及 2010-2019 年间的邮件内容；美国司法部官员确认泄露材料"看起来真实"。此前该组织域名曾被美方查获。',
     sources: [
       {
-        name: 'Reuters（3/27）',
-        url: 'https://www.reuters.com/world/us/iran-linked-hackers-claim-breach-of-fbi-directors-personal-email-doj-official-2026-03-27/'
-      },
-      {
-        name: 'CBS News（3/27）',
+        name: 'CBS News（3/27，转引 Reuters 报道要点）',
         url: 'https://www.cbsnews.com/news/fbi-director-kash-patel-email-hackers-lran/'
       }
+      /* 注：Reuters 原文在部分地区/网络环境下不可直接访问，因此以 CBS 可公开访问版本作为来源链接。 */
     ]
   },
   {
@@ -3271,7 +3268,7 @@ const events = [
         url: 'https://www.theguardian.com/world/live/2026/mar/30/iran-war-live-updates-trump-oil-kharg-island-houthis-israel-lebanon-middle-east'
       },
       {
-        name: 'Reuters / Kpler（3/31）',
+        name: '（待补可访问来源）Reuters / Kpler（3/31）',
         url: 'https://www.reuters.com/world/middle-east/two-chinese-container-ships-pass-through-strait-hormuz-2026-03-31/'
       }
     ]
@@ -3285,7 +3282,7 @@ const events = [
     desc: '科威特石油公司声明：满载原油的 Al Salmi 巨型油轮在迪拜港锚泊时遭伊朗攻击，船体受损并起火。科方警告周边水域"可能漏油"。无人员伤亡，损害评估正在进行。这是冲突以来伊朗对海湾港口内停泊油轮的最大规模攻击之一，加剧了区域海上安全和环境风险。',
     sources: [
       {
-        name: 'Kuna / Reuters（3/31）',
+        name: '（待补可访问来源）Kuna / Reuters（3/31）',
         url: 'https://www.reuters.com/world/middle-east/kuwait-says-its-oil-tanker-hit-iranian-attack-dubai-port-2026-03-31/'
       },
       {
@@ -3492,7 +3489,7 @@ const events = [
         url: 'https://www.theguardian.com/world/live/2026/mar/31/iran-latest-updates-trump-threats-oil-spill-dubai-tehran-jerusalem-strikes'
       },
       {
-        name: 'Reuters（3/31）',
+        name: '（待补可访问来源）Reuters（3/31）',
         url: 'https://www.reuters.com/world/middle-east/israel-says-it-is-prepared-weeks-more-fighting-iran-2026-03-31/'
       }
     ]
@@ -3577,7 +3574,7 @@ const events = [
     desc: 'Reuters 报道：意大利政府拒绝美军轰炸机在其西西里 Sigonella 基地降落加油。此前西班牙已关闭领空和基地禁止美军作战飞机使用。鲁比奥随后在 Fox News 采访中称北约价值需"非常仔细地重新审视"，"如果我们需要使用他们的军事基地而他们拒绝，那我们为什么还要留在北约？"德国外长同期表态认为北约框架仍需维护。这是冲突以来北约内部分裂持续加深的最新例证。',
     sources: [
       {
-        name: 'Reuters（3/31）',
+        name: '（待补可访问来源）Reuters（3/31）',
         url: 'https://www.reuters.com/business/aerospace-defense/italy-refuses-us-aircraft-use-sicily-base-middle-east-operations-source-says-2026-03-31/'
       },
       {
@@ -6329,7 +6326,7 @@ const events = [
   }
 ];
 
-functionfunctionfunction render(list){
+function render(list){
   // Group by date (foldable)
   const groups = new Map();
   for(const e of list){
