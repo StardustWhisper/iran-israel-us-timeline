@@ -466,46 +466,23 @@ GROK_MODEL="${GROK_MODEL:-gpt-5.2}"
 GROK_TEMPERATURE="${GROK_TEMPERATURE:-0.7}"
 export GROK_MODEL GROK_TEMPERATURE
 
-# Draft generation (primary: cpa-plus; fallback: zai-coding-plan) — to survive CPA 429 rate limits.
-PRIMARY_DRAFT_PROVIDER="${PRIMARY_DRAFT_PROVIDER:-cpa}"
-FALLBACK_DRAFT_PROVIDER="${FALLBACK_DRAFT_PROVIDER:-zai}"
-ZAI_MODEL="${ZAI_MODEL:-glm-5.1}"
-ZAI_TEMPERATURE="${ZAI_TEMPERATURE:-0.7}"
-ZAI_MAX_TOKENS="${ZAI_MAX_TOKENS:-2400}"
+# Draft generation — use Gateway agent path for stability.
+# Rationale:
+# - CPA direct /chat/completions may return null content
+# - ZAI/GLM may emit planning text in reasoning_content
+# Agent path has proven stable for producing publishable Markdown.
+DRAFT_AGENT="${DRAFT_AGENT:-linus}"
+DRAFT_SESSION_ID="${HUGO_SESSION_ID}:draft"
+export DRAFT_AGENT DRAFT_SESSION_ID
 
-_draft_with_provider() {
-  local provider="$1"
-  if [[ "$provider" == "cpa" ]]; then
-    python3 scripts/cpa_chat_completions.py \
-      --model "$GROK_MODEL" \
-      --system "You are a helpful assistant. Output only the final Chinese Markdown article." \
-      --user-file "$COMPACT_PROMPT" \
-      --temperature "$GROK_TEMPERATURE" \
-      --max-tokens 2400 \
-      --out "$ARTICLE_MD_RAW" \
-      >/dev/null
-  elif [[ "$provider" == "zai" ]]; then
-    python3 scripts/zai_chat_completions.py \
-      --model "$ZAI_MODEL" \
-      --system "You are a helpful assistant. Output only the final Chinese Markdown article." \
-      --user-file "$COMPACT_PROMPT" \
-      --temperature "$ZAI_TEMPERATURE" \
-      --max-tokens "$ZAI_MAX_TOKENS" \
-      --out "$ARTICLE_MD_RAW" \
-      >/dev/null
-  else
-    echo "Unknown draft provider: $provider" >&2
-    return 2
-  fi
-}
-
-# Try primary; if it fails (most commonly CPA 429), fallback once.
-if _draft_with_provider "$PRIMARY_DRAFT_PROVIDER"; then
-  :
-else
-  echo "WARN: drafting failed on provider=$PRIMARY_DRAFT_PROVIDER, trying fallback=$FALLBACK_DRAFT_PROVIDER" >&2
-  _draft_with_provider "$FALLBACK_DRAFT_PROVIDER"
-fi
+python3 scripts/openclaw_agent_generate.py \
+  --agent "$DRAFT_AGENT" \
+  --session-id "$DRAFT_SESSION_ID" \
+  --to +15555550123 \
+  --timeout 900 \
+  --message-file "$COMPACT_PROMPT" \
+  --out "$ARTICLE_MD_RAW" \
+  >/dev/null
 
 ARTICLE_STATUS="generated"
 
@@ -713,47 +690,19 @@ parts.append(article_excerpt)
 print('\n'.join(parts))
 PY
 
-  # Revision generation (primary: cpa-plus; fallback: zai-coding-plan)
-  # IMPORTANT: ZAI/GLM sometimes returns planning text without an H1.
-  # Prefer CPA for revisions by default.
-  PRIMARY_REV_PROVIDER="${PRIMARY_REV_PROVIDER:-cpa}"
-  FALLBACK_REV_PROVIDER="${FALLBACK_REV_PROVIDER:-zai}"
-  ZAI_MODEL="${ZAI_MODEL:-glm-5.1}"
-  ZAI_TEMPERATURE="${ZAI_TEMPERATURE:-0.7}"
-  ZAI_MAX_TOKENS="${ZAI_MAX_TOKENS:-2400}"
+  # Revision generation — use Gateway agent path for stability.
+  REV_AGENT="${REV_AGENT:-$DRAFT_AGENT}"
+  REV_SESSION_ID="${HUGO_SESSION_ID}:rev:${rev}"
+  export REV_AGENT REV_SESSION_ID
 
-  _rev_with_provider() {
-    local provider="$1"
-    if [[ "$provider" == "cpa" ]]; then
-      python3 scripts/cpa_chat_completions.py \
-        --model "$GROK_MODEL" \
-        --system "You are a helpful assistant. Output only the final Chinese Markdown article." \
-        --user-file "$REV_PROMPT" \
-        --temperature "$GROK_TEMPERATURE" \
-        --max-tokens 2400 \
-        --out "$ARTICLE_MD_RAW" \
-        >/dev/null
-    elif [[ "$provider" == "zai" ]]; then
-      python3 scripts/zai_chat_completions.py \
-        --model "$ZAI_MODEL" \
-        --system "You are a helpful assistant. Output only the final Chinese Markdown article." \
-        --user-file "$REV_PROMPT" \
-        --temperature "$ZAI_TEMPERATURE" \
-        --max-tokens "$ZAI_MAX_TOKENS" \
-        --out "$ARTICLE_MD_RAW" \
-        >/dev/null
-    else
-      echo "Unknown revision provider: $provider" >&2
-      return 2
-    fi
-  }
-
-  if _rev_with_provider "$PRIMARY_REV_PROVIDER"; then
-    :
-  else
-    echo "WARN: revision failed on provider=$PRIMARY_REV_PROVIDER, trying fallback=$FALLBACK_REV_PROVIDER" >&2
-    _rev_with_provider "$FALLBACK_REV_PROVIDER"
-  fi
+  python3 scripts/openclaw_agent_generate.py \
+    --agent "$REV_AGENT" \
+    --session-id "$REV_SESSION_ID" \
+    --to +15555550123 \
+    --timeout 900 \
+    --message-file "$REV_PROMPT" \
+    --out "$ARTICLE_MD_RAW" \
+    >/dev/null
 
   # re-run editor on revised draft
   STAGE="edit_review"
