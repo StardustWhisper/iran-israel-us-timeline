@@ -233,7 +233,7 @@
   <header>
     <h1>美国-以色列-伊朗冲突时间轴（自 2026-02-28 起）</h1>
     <p>基于公开报道梳理的关键节点时间轴。</p>
-    <p class="pill">最后更新：2026-04-21 05:00（北京时间） · 说明：部分来源为二手汇总（如维基），已尽量配上权威媒体/机构链接作交叉验证。</p>
+    <p class="pill">最后更新：2026-04-21 09:00（北京时间） · 说明：部分来源为二手汇总（如维基），已尽量配上权威媒体/机构链接作交叉验证。</p>
   </header>
 
   <div class="wrap">
@@ -9050,11 +9050,53 @@ const events = [
         url: 'https://apnews.com/live/iran-war-israel-trump-04-20-2026#0000019d-ac6a-d3c1-adfd-ff7ef4f5000'
       }
     ]
+  },
+  {
+    date: '2026-04-21',
+    tags: [
+      'Mediator'
+    ],
+    title: '[Mediator] 伊拉克与叙利亚重开边境口岸，称可作为霍尔木兹海峡替代石油运输路线',
+    desc: 'AP liveblog 报道：伊拉克与叙利亚重开两国之间一处关键边境口岸（为十多年来首次），官员强调其贸易和石油出口潜力，称可替代受战争影响的霍尔木兹海峡路线。但在口岸开放仪式上，伊拉克尼尼微省议会议员 Nadia al-Jubouri 承认陆路石油运输能力远不及管道和海上油轮。按北京时间归入 4/21（约 04:32 发布）。',
+    sources: [
+      {
+        name: "AP Live（Apr 21）：Iraq and Syria tout their reopened border crossing as an alternative oil route",
+        url: 'https://apnews.com/live/iran-war-israel-trump-04-20-2026#0000019d-ac93-d660-a3ff-afbb43f30000'
+      }
+    ]
+  },
+  {
+    date: '2026-04-21',
+    tags: [
+      'Iran'
+    ],
+    title: '[Iran] 议长卡利巴夫：“不接受在威胁阴影下谈判”；称伊朗正准备“在战场上亮出新牌”',
+    desc: 'AP liveblog 报道：伊朗议长卡利巴夫在社交媒体发文称“不接受在威胁阴影下进行谈判”，指责美国实质上是要求伊朗投降，并称伊朗方面正准备“在战场上亮出新牌”（reveal new cards on the battlefield）。该表态进一步增加了停火到期前第二轮谈判前景的不确定性。按北京时间归入 4/21（约 05:44 发布）。',
+    sources: [
+      {
+        name: "AP Live（Apr 21）：Iran's chief negotiator seems to cast more doubt on a second round of talks with the US",
+        url: 'https://apnews.com/live/iran-war-israel-trump-04-20-2026#0000019d-aca0-df6c-a3bd-bfeb2c7f0000'
+      }
+    ]
+  },
+  {
+    date: '2026-04-21',
+    tags: [
+      'UN',
+      'Economy'
+    ],
+    title: '[UN] 联合国下调亚洲经济增长预测：中国今年增速或降至 4.3%–4.6%，印度降至约 6%',
+    desc: 'AP liveblog 报道：联合国亚太经社会（ESCAP）高级经济学家 Hamza Malik 表示，受伊朗战争引发的油价上涨影响，中国 2026 年经济增速可能从去年的 5% 降至 4.3%–4.6%；印度增速可能从去年的 7% 以上降至约 6%，主因石油、汽油和化肥价格上涨。Malik 称“亚太地区仍是全球经济增长引擎，但战争拖累明显”。按北京时间归入 4/21（约 06:50 发布）。',
+    sources: [
+      {
+        name: "AP Live（Apr 21）：UN reduces economic growth forecasts for Asia, including China and India, because of the Iran war",
+        url: 'https://apnews.com/live/iran-war-israel-trump-04-20-2026#0000019d-acda-d370-afff-fefa03c20000'
+      }
+    ]
   }
 ];
 
 function render(list){
-  // Group by date (foldable)
   const groups = new Map();
   for(const e of list){
     const d = e.date || 'Unknown';
