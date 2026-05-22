@@ -130,7 +130,20 @@ import json, os, re
 p=os.environ['TITLE_JSON']
 text=open(p,'r',encoding='utf-8').read()
 start=text.find('{')
-obj=json.loads(text[start:])
+try:
+    obj=json.loads(text[start:])
+except json.JSONDecodeError:
+    # openclaw CLI may emit multiple JSON objects; parse only the first
+    decoder=json.JSONDecoder()
+    obj, _ = decoder.raw_decode(text, start)
+    # If the wrapper contains a result.payloads[].text with actual JSON, try that
+    payloads=obj.get('result',{}).get('payloads',[])
+    for pl in payloads:
+        inner_text=pl.get('text','')
+        m=re.search(r'\{[^}]*"title"[^}]*\}', inner_text)
+        if m:
+            obj=json.loads(m.group())
+            break
 new_title=(obj.get('title') or '').strip()
 source=os.environ.get('SOURCE_TITLE','').strip()
 # Fallbacks / guards
