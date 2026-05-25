@@ -107,7 +107,18 @@ TITLE_AGENT="${TITLE_AGENT:-linus}"
 TITLE_SESSION_ID="${HUGO_SESSION_ID}:title"
 TITLE_JSON="$OUT_DIR/title.json"
 export SOURCE_TITLE URL TITLE_JSON TITLE_AGENT TITLE_SESSION_ID
-TITLE=$(bash scripts/openclaw_cli.sh agent --agent "$TITLE_AGENT" --session-id "$TITLE_SESSION_ID" --to +15555550123 --timeout 300 --json --message "你现在做【二次选题】。我会给你：源标题 + 源链接 + 目标平台（公众号）。
+
+# Idempotency: skip title generation if title.json already exists with a valid title
+if [[ -f "$TITLE_JSON" ]]; then
+  EXISTING_TITLE=$(python3 -c "import json; d=json.load(open('$TITLE_JSON')); t=d.get('title','').strip(); print(t if t else 'EMPTY')" 2>/dev/null || echo 'EMPTY')
+  if [[ "$EXISTING_TITLE" != "EMPTY" && "$EXISTING_TITLE" != "$SOURCE_TITLE" ]]; then
+    echo "SKIP: title.json already exists with title='$EXISTING_TITLE'"
+    TITLE="$EXISTING_TITLE"
+    export TITLE
+    # Jump past the title generation block
+  else
+    # Existing title is empty or same as source; regenerate
+    TITLE=$(bash scripts/openclaw_cli.sh agent --agent "$TITLE_AGENT" --session-id "$TITLE_SESSION_ID" --to +15555550123 --timeout 300 --json --message "你现在做【二次选题】。我会给你：源标题 + 源链接 + 目标平台（公众号）。
 
 请输出【严格 JSON 对象】（不要 markdown、不要前后解释）：
 {
@@ -161,6 +172,12 @@ if len(new_title) >= 8 and len(source) >= 8:
 print(new_title)
 PY
 ) || TITLE="$SOURCE_TITLE"
+# Guard: ensure TITLE is never empty/unbound
+if [ -z "${TITLE:-}" ]; then
+    TITLE="$SOURCE_TITLE"
+fi
+  fi  # end of idempotency if/else
+fi    # end of title.json existence check
 
 # expose to later steps
 export SOURCE_TITLE URL TITLE TITLE_JSON
@@ -235,8 +252,19 @@ CLAIMS_AGENT="${CLAIMS_AGENT:-linus}"
 CLAIMS_SESSION_ID="${HUGO_SESSION_ID}:claims"
 export CLAIMS_AGENT CLAIMS_SESSION_ID
 
+# Idempotency: skip if claims.json already exists and has quality cards
 CLAIMS_OK=0
+if [[ -f "$CLAIMS_JSON" ]]; then
+  EXISTING_QUALITY=$(python3 -c "import json; d=json.load(open('$CLAIMS_JSON')); print('ok' if d.get('qualityOk') else 'bad')" 2>/dev/null || echo 'bad')
+  if [[ "$EXISTING_QUALITY" == 'ok' ]]; then
+    echo "SKIP: claims.json already exists with qualityOk=true"
+    CLAIMS_OK=1
+  fi
+fi
+
 for attempt in 1 2; do
+  # Skip if already OK from idempotency check above
+  [[ "$CLAIMS_OK" == "1" ]] && break
   if bash scripts/openclaw_cli.sh agent --agent "$CLAIMS_AGENT" --session-id "$CLAIMS_SESSION_ID" --to +15555550123 --timeout 900 --json --message "你现在不是写文章，而是在搭建【观点卡片（Claim Cards）】。
 
 输入：
