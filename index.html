@@ -234,7 +234,7 @@
   <header>
     <h1>美国-以色列-伊朗冲突时间轴(自 2026-02-28 起)</h1>
     <p>基于公开报道梳理的关键节点时间轴。</p>
-    <p class="pill">最后更新:2026-06-11 00:55(北京时间) · 说明:部分来源为二手汇总(如维基),已尽量配上权威媒体/机构链接作交叉验证。</p>
+    <p class="pill">最后更新:2026-06-17 05:30(北京时间) · 说明:部分来源为二手汇总(如维基),已尽量配上权威媒体/机构链接作交叉验证。</p>
   </header>
 
   <div class="wrap">
@@ -265,7 +265,7 @@
 
 <script>
 const events = [
-const events = [
+  {
     date: "2026-06-14",
     tags: [
       "Trump",
@@ -20725,9 +20725,7 @@ const events = [
       }
     ]
   },
-  {
-]
-;
+];
 
 function render(list){
   const groups = new Map();
@@ -20816,95 +20814,7 @@ q.addEventListener('input', applyFilters);
 tagFilters.forEach(el=>el.addEventListener('change', applyFilters));
 
 applyFilters();
-];
 
-function render(list){
-  const groups = new Map();
-  for(const e of list){
-    const d = e.date || 'Unknown';
-    if(!groups.has(d)) groups.set(d, []);
-    groups.get(d).push(e);
-  }
-  const dates = Array.from(groups.keys()).sort();
-
-  const root=document.getElementById('timeline');
-  root.innerHTML='';
-
-  let total=0;
-  for(const d of dates){
-    const items = groups.get(d);
-    total += items.length;
-
-    const details=document.createElement('details');
-    details.open = (d >= '2026-03-20');
-
-    const summary=document.createElement('summary');
-    const weekdayMap = ['日','一','二','三','四','五','六'];
-    const dt = new Date(d + 'T00:00:00+08:00');
-    const wd = weekdayMap[dt.getDay()];
-    summary.innerHTML = `<span class="date-label">${d}</span><span class="day-badge">周${wd} · ${items.length} 条</span><svg class="chevron" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>`;
-    details.appendChild(summary);
-
-    const day=document.createElement('div');
-    day.className='day';
-
-    for(const e of items){
-      const div=document.createElement('div');
-      div.className='item';
-      const tagHtml = (e.tags||[]).map(t=>`<span class="tag ${tagClass(t)}">${escapeHtml(t)}</span>`).join('');
-      div.innerHTML=`
-        <div class="date">${escapeHtml(e.date)}</div>
-        <div class="title">${escapeHtml(e.title)}</div>
-        <div class="tags">${tagHtml}</div>
-        <p class="desc">${escapeHtml(e.desc)}</p>
-        <div class="sources">${(e.sources||[]).map(s=>`<a href="${s.url}" target="_blank" rel="noopener">${escapeHtml(s.name)}</a>`).join(' · ')}</div>
-      `;
-      day.appendChild(div);
-    }
-
-    details.appendChild(day);
-    root.appendChild(details);
-  }
-
-}
-
-function escapeHtml(str){
-  return String(str).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
-}
-
-function tagClass(t){
-  // Keep it safe for className (we only expect simple tag strings like Trump/Iran/UN)
-  return 'tag-' + String(t).replace(/[^A-Za-z0-9_-]/g, '');
-}
-
-const q=document.getElementById('q');
-const tagFilters = Array.from(document.querySelectorAll('.tagf'));
-
-function enabled(set){
-  return new Set(set.filter(x=>x.checked).map(x=>x.value));
-}
-
-function applyFilters(){
-  const s=q.value.trim().toLowerCase();
-  const enabledTags=enabled(tagFilters);
-
-  const filtered=events.filter(e=>{
-    const tags=e.tags||[];
-    const tagOk = tags.length===0 ? true : tags.some(t=>enabledTags.has(t));
-    if(!tagOk) return false;
-
-    if(!s) return true;
-    const hay=(e.date+' '+e.title+' '+e.desc+' '+(e.sources||[]).map(x=>x.name).join(' ')+' '+tags.join(' ')).toLowerCase();
-    return hay.includes(s);
-  });
-
-  render(filtered);
-}
-
-q.addEventListener('input', applyFilters);
-tagFilters.forEach(el=>el.addEventListener('change', applyFilters));
-
-applyFilters();
 </script>
 </body>
 </html>
