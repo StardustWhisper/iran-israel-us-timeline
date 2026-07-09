@@ -302,59 +302,29 @@ const events = [
   }
 ];
 
-function render(list){
-  const groups = new Map();
-  for(const e of list){
-    const d = e.date || 'Unknown';
-    if(!groups.has(d)) groups.set(d, []);
-    groups.get(d).push(e);
-  }
-  const dates = Array.from(groups.keys()).sort();
+function render(events) {
+            const timeline = document.querySelector('.timeline');
+            events.forEach((event, index) => {
+                const container = document.createElement('div');
+                container.className = `container ${index % 2 === 0 ? 'left' : 'right'}`;
+                container.innerHTML = `
+                    <div class="content">
+                        <h2>${escapeHtml(event.date)}</h2>
+                        <p>${escapeHtml(event.description)}</p>
+                    </div>
+                `;
+                timeline.appendChild(container);
+            });
+        }
 
-  const root=document.getElementById('timeline');
-  root.innerHTML='';
-
-  let total=0;
-  for(const d of dates){
-    const items = groups.get(d);
-    total += items.length;
-
-    const details=document.createElement('details');
-    details.open = (d >= '2026-03-20');
-
-    const summary=document.createElement('summary');
-    const weekdayMap = ['日','一','二','三','四','五','六'];
-    const dt = new Date(d + 'T00:00:00+08:00');
-    const wd = weekdayMap[dt.getDay()];
-    summary.innerHTML = `<span class="date-label">${d}</span><span class="day-badge">周${wd} · ${items.length} 条</span><svg class="chevron" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>`;
-    details.appendChild(summary);
-
-    const day=document.createElement('div');
-    day.className='day';
-
-    for(const e of items){
-      const div=document.createElement('div');
-      div.className='item';
-      const tagHtml = (e.tags||[]).map(t=>`<span class="tag ${tagClass(t)}">${escapeHtml(t)}</span>`).join('');
-      div.innerHTML=`
-        <div class="date">${escapeHtml(e.date)}</div>
-        <div class="title">${escapeHtml(e.title)}</div>
-        <div class="tags">${tagHtml}</div>
-        <p class="desc">${escapeHtml(e.desc)}</p>
-        <div class="sources">${(e.sources||[]).map(s=>`<a href="${s.url}" target="_blank" rel="noopener">${escapeHtml(s.name)}</a>`).join(' · ')}</div>
-      `;
-      day.appendChild(div);
-    }
-
-    details.appendChild(day);
-    root.appendChild(details);
-  }
-
-}
-
-function escapeHtml(str){
-  return String(str).replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
-}
+function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/'/g, "&#39;")
+                .replace(/\"/g, "&quot;");
+        }
 
 function tagClass(t){
   // Keep it safe for className (we only expect simple tag strings like Trump/Iran/UN)
