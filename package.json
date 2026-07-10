@@ -1,0 +1,21 @@
+{
+  "name": "iran-israel-us-timeline",
+  "version": "1.0.0",
+  "description": "生成的静态站点：`index.html`（单文件，无依赖）。",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "generate-timeline": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/StardustWhisper/iran-israel-us-timeline.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/StardustWhisper/iran-israel-us-timeline/issues"
+  },
+  "homepage": "https://github.com/StardustWhisper/iran-israel-us-timeline#readme"
+}
