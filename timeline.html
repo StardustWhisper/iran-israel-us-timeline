@@ -1,35 +1,69 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>时间线</title>
+    <title>伊朗-以色列-美国时间线</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .event { margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
         h3 { margin-top: 0; }
+        .date { color: #555; font-size: 0.9em; }
+        .location { color: #777; font-size: 0.9em; }
+        .description { margin: 10px 0; }
+        .source { color: #0066cc; }
     </style>
 </head>
 <body>
-    <h1>时间线</h1>
-    
-            <div class="event">
-                <h3>特朗普宣布支持以色列</h3>
-                <p><strong>日期:</strong> 2023/10/1 08:00:00 (北京时间)</p>
-                <p><strong>地点:</strong> 美国华盛顿</p>
-                <p>特朗普在推特上宣布支持以色列，并表示将提供军事援助。</p>
-                <p><strong>来源:</strong> <a href="https://twitter.com/realDonaldTrump/status/1234567890">特朗普推特</a></p>
-            </div>
-        
+    <h1>伊朗-以色列-美国时间线</h1>
+    <script>
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\n/g, "<br>")
+                .replace(/\t/g, "&nbsp;&nbsp;&nbsp;&nbsp;");
+        }
 
-            <div class="event">
-                <h3>伊朗外交部长发表讲话</h3>
-                <p><strong>日期:</strong> 2023/10/2 08:00:00 (北京时间)</p>
-                <p><strong>地点:</strong> 伊朗德黑兰</p>
-                <p>伊朗外交部长在联合国大会上发表讲话，强调伊朗的核计划和地区安全问题。</p>
-                <p><strong>来源:</strong> <a href="https://www.un.org/press-release/2023/10/iran-speech">联合国新闻稿</a></p>
-            </div>
-        
+        function render(events) {
+            const container = document.querySelector('body');
+            events.forEach(event => {
+                const eventDiv = document.createElement('div');
+                eventDiv.className = 'event';
+                eventDiv.innerHTML = `
+                    <h3>${escapeHtml(event.title)}</h3>
+                    <p class="date"><strong>日期:</strong> ${escapeHtml(event.date)}</p>
+                    <p class="location"><strong>地点:</strong> ${escapeHtml(event.location)}</p>
+                    <p class="description">${escapeHtml(event.description)}</p>
+                    <p class="source"><strong>来源:</strong> <a href="${escapeHtml(event.sourceUrl)}">${escapeHtml(event.source)}</a></p>
+                `;
+                container.appendChild(eventDiv);
+            });
+        }
+
+        const events = [
+            {
+                title: "特朗普宣布支持以色列",
+                date: "2023/10/1 08:00:00 (北京时间)",
+                location: "美国华盛顿",
+                description: "特朗普在推特上宣布支持以色列，并表示将提供军事援助。",
+                source: "特朗普推特",
+                sourceUrl: "https://twitter.com/realDonaldTrump/status/1234567890"
+            },
+            {
+                title: "伊朗外交部长发表讲话",
+                date: "2023/10/2 08:00:00 (北京时间)",
+                location: "伊朗德黑兰",
+                description: "伊朗外交部长在联合国大会上发表讲话，强调伊朗的核计划和地区安全问题。",
+                source: "联合国新闻稿",
+                sourceUrl: "https://www.un.org/press-release/2023/10/iran-speech"
+            }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            render(events);
+        });
+    </script>
 </body>
 </html>
