@@ -18,6 +18,9 @@
     <h1>伊朗-以色列-美国时间线</h1>
     <script>
         function escapeHtml(unsafe) {
+            if (typeof unsafe !== 'string') {
+                return '';
+            }
             return unsafe
                 .replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
@@ -28,7 +31,15 @@
 
         function render(events) {
             const container = document.querySelector('body');
+            if (!Array.isArray(events)) {
+                console.error('Events is not an array');
+                return;
+            }
             events.forEach(event => {
+                if (!event || typeof event !== 'object') {
+                    console.error('Invalid event object');
+                    return;
+                }
                 const eventDiv = document.createElement('div');
                 eventDiv.className = 'event';
                 eventDiv.innerHTML = `
