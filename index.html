@@ -27,6 +27,35 @@
         groupedEvents[event.date].push(event);
       });
 
+      const q=document.getElementById('q');
+      const tagFilters = Array.from(document.querySelectorAll('.tagf'));
+
+      function enabled(set){
+        return new Set(set.filter(x=>x.checked).map(x=>x.value));
+      }
+
+      function applyFilters(){
+        const s=q.value.trim().toLowerCase();
+        const enabledTags=enabled(tagFilters);
+
+        const filtered=events.filter(e=>{
+          const tags=e.tags||[];
+          const tagOk = tags.length===0 ? true : tags.some(t=>enabledTags.has(t));
+          if(!tagOk) return false;
+
+          if(!s) return true;
+          const hay=(e.date+' '+e.title+' '+e.desc+' '+(e.sources||[]).map(x=>x.name).join(' ')+' '+tags.join(' ')).toLowerCase();
+          return hay.includes(s);
+        });
+
+        render(filtered);
+      }
+
+      q.addEventListener('input', applyFilters);
+      tagFilters.forEach(el=>el.addEventListener('change', applyFilters));
+
+      applyFilters();
+
       // Sort dates in descending order
       const sortedDates = Object.keys(groupedEvents).sort((a, b) => new Date(b) - new Date(a));
 
