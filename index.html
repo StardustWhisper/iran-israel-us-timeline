@@ -4,6 +4,123 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>美国-以色列-伊朗冲突时间轴(自 2026-02-28 起)</title>
+  <script>
+    function escapeHtml(unsafe) {
+      return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/\"/g, "&#039;");
+    }
+
+    function render(events) {
+      const timeline = document.getElementById('timeline');
+      timeline.innerHTML = '';
+
+      // Group events by date
+      const groupedEvents = {};
+      events.forEach(event => {
+        if (!groupedEvents[event.date]) {
+          groupedEvents[event.date] = [];
+        }
+        groupedEvents[event.date].push(event);
+      });
+
+      // Sort dates in descending order
+      const sortedDates = Object.keys(groupedEvents).sort((a, b) => new Date(b) - new Date(a));
+
+      // Render each date group
+      sortedDates.forEach(date => {
+        const dateGroup = document.createElement('details');
+        dateGroup.open = true;
+
+        const summary = document.createElement('summary');
+        summary.innerHTML = `
+          <span class="date-label">${date}</span>
+          <span class="day-badge">${new Date(date).toLocaleDateString('zh-CN', { weekday: 'short' })}</span>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        `;
+
+        dateGroup.appendChild(summary);
+
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'day';
+
+        groupedEvents[date].forEach(event => {
+          const item = document.createElement('div');
+          item.className = 'item';
+
+          const dateSpan = document.createElement('div');
+          dateSpan.className = 'date';
+          dateSpan.textContent = event.date;
+
+          const title = document.createElement('h3');
+          title.className = 'title';
+          title.textContent = event.title;
+
+          const desc = document.createElement('p');
+          desc.className = 'desc';
+          desc.textContent = event.desc;
+
+          const tagsDiv = document.createElement('div');
+          tagsDiv.className = 'tags';
+          event.tags.forEach(tag => {
+            const tagSpan = document.createElement('span');
+            tagSpan.className = `tag tag-${tag}`;
+            tagSpan.textContent = tag;
+            tagsDiv.appendChild(tagSpan);
+          });
+
+          const sourcesDiv = document.createElement('div');
+          sourcesDiv.className = 'sources';
+          event.sources.forEach(source => {
+            const link = document.createElement('a');
+            link.href = source.url;
+            link.textContent = source.name;
+            link.target = '_blank';
+            sourcesDiv.appendChild(link);
+          });
+
+          item.appendChild(dateSpan);
+          item.appendChild(title);
+          item.appendChild(desc);
+          item.appendChild(tagsDiv);
+          item.appendChild(sourcesDiv);
+
+          dayDiv.appendChild(item);
+        });
+
+        dateGroup.appendChild(dayDiv);
+        timeline.appendChild(dateGroup);
+      });
+    }
+
+    // Initial render
+    render(events);
+
+    // Search functionality
+    document.getElementById('q').addEventListener('input', function(e) {
+      const searchTerm = e.target.value.toLowerCase();
+      const filteredEvents = events.filter(event => {
+        return event.title.toLowerCase().includes(searchTerm) ||
+               event.desc.toLowerCase().includes(searchTerm) ||
+               event.tags.some(tag => tag.toLowerCase().includes(searchTerm));
+      });
+      render(filteredEvents);
+    });
+
+    // Tag filter functionality
+    document.querySelectorAll('.tagf').forEach(checkbox => {
+      checkbox.addEventListener('change', function() {
+        const activeTags = Array.from(document.querySelectorAll('.tagf:checked')).map(cb => cb.value);
+        const filteredEvents = events.filter(event => {
+          return activeTags.every(tag => event.tags.includes(tag));
+        });
+        render(filteredEvents);
+      });
+    });
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=Noto+Sans+SC:wght@400;600;700&display=swap" rel="stylesheet" />
