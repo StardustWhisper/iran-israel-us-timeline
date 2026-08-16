@@ -53,6 +53,30 @@
             });
         }
 
+        function render(events) {
+            const container = document.querySelector('body');
+            if (!Array.isArray(events)) {
+                console.error('Events is not an array');
+                return;
+            }
+            events.forEach(event => {
+                if (!event || typeof event !== 'object') {
+                    console.error('Invalid event object');
+                    return;
+                }
+                const eventDiv = document.createElement('div');
+                eventDiv.className = 'event';
+                eventDiv.innerHTML = `
+                    <h3>${escapeHtml(event.title)}</h3>
+                    <p class="date"><strong>日期:</strong> ${escapeHtml(event.date)}</p>
+                    <p class="location"><strong>地点:</strong> ${escapeHtml(event.location)}</p>
+                    <p class="description">${escapeHtml(event.description)}</p>
+                    <p class="source"><strong>来源:</strong> <a href="${escapeHtml(event.sourceUrl)}">${escapeHtml(event.source)}</a></p>
+                `;
+                container.appendChild(eventDiv);
+            });
+        }
+
         const events = [
             {
                 title: "特朗普宣布支持以色列",
